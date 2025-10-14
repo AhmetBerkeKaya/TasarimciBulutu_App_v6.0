@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TasarimciBulutu Projesi - Durum Raporu ve Yol Haritası</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .section-card { background-color: white; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); padding: 1.5rem; margin-bottom: 2rem; }
+        h2 { font-size: 1.875rem; font-weight: 700; margin-bottom: 1rem; color: #111827; }
+        h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.75rem; color: #1F2937; border-bottom: 1px solid #E5E7EB; padding-bottom: 0.5rem;}
+        li { margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+    <div class="container mx-auto p-6 md:p-10">
+        
+        <header class="mb-10 text-center">
+            <h1 class="text-5xl font-bold text-gray-900">TasarimciBulutu Projesi</h1>
+            <p class="mt-3 text-xl text-gray-600">Durum Raporu ve Güncel Yol Haritası</p>
+            <p class="mt-1 text-sm text-gray-500">Tarih: 22 Temmuz 2025</p>
+        </header>
+
+        <div class="section-card">
+            <h2 class="flex items-center">
+                <span class="text-3xl mr-3">✅</span>
+                Tamamlananlar
+            </h2>
+            <p class="text-gray-600 mb-6">Aşağıdaki özellikler ve iyileştirmeler başarıyla tamamlanmış ve entegre edilmiştir.</p>
+            
+            <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <h3 class="text-blue-700">Core Backend Altyapısı ve Güvenlik</h3>
+                    <ul class="list-disc list-inside space-y-2 text-gray-700">
+                        <li><strong>Merkezi Konfigürasyon:</strong> Güvenlik anahtarları ve ayarlar, `.env` dosyasından okunan merkezi bir `config.py` yapısına taşındı.</li>
+                        <li><strong>"Beni Hatırla" Özelliği:</strong> JWT Access Token yanına, daha uzun ömürlü Refresh Token mekanizması eklendi.</li>
+                        <li><strong>Kapsamlı Rate Limiting:</strong>
+                            <ul class="list-['-_'] list-inside ml-4">
+                                <li>Brute-force saldırılarına karşı giriş (`/token`) endpoint'i korumaya alındı.</li>
+                                <li>Spam ve scraping'i önlemek için tüm kritik endpoint'lere (`projects`, `applications`, `reviews` vb.) özel limitler getirildi.</li>
+                                <li>Tüm API için genel bir güvenlik ağı (global limit) oluşturuldu.</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 class="text-green-700">Kullanıcı Akışları ve Entegrasyon</h3>
+                    <ul class="list-disc list-inside space-y-2 text-gray-700">
+                        <li><strong>"Şifremi Unuttum" Akışı:</strong>
+                            <ul class="list-['-_'] list-inside ml-4">
+                                <li>Güvenli, tek kullanımlık şifre sıfırlama kodu üretimi sağlandı.</li>
+                                <li>SendGrid entegrasyonu ile kullanıcıya e-posta gönderimi tamamlandı.</li>
+                                <li>Kod doğrulama ve şifre güncelleme endpoint'leri eklendi.</li>
+                            </ul>
+                        </li>
+                        <li><strong>Flutter Entegrasyonu:</strong> "Şifremi Unuttum" özelliğinin tüm akışı (talep, kod girme, sıfırlama) Flutter uygulamasında test edilerek tamamlandı.</li>
+                        <li><strong>Navigasyon Bug'ı Düzeltmesi:</strong> Şifre sıfırlama sonrası giriş yapıldığında ana ekrana geçişte yaşanan "takılma" sorunu giderildi.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <h2 class="flex items-center">
+                <span class="text-3xl mr-3">🚀</span>
+                Güncel Yol Haritası
+            </h2>
+            <p class="text-gray-600 mb-6">Uygulamayı lansmana hazırlamak için izleyeceğimiz adımlar aşağıda öncelik sırasına göre listelenmiştir.</p>
+
+            <ol class="list-decimal list-inside space-y-6 text-gray-700">
+                <li>
+                    <strong class="font-semibold text-lg text-gray-800">Faz 1: Proje Vitrini (3D Görüntüleyici) - Backend Kurulumu</strong>
+                    <p class="ml-6 text-sm text-gray-600">Uygulamanın en can alıcı özelliği olan, tasarımcıların işlerini sergileyeceği vitrinin altyapısını hazırlayacağız.</p>
+                    <ul class="list-['-_'] list-inside ml-10 mt-2">
+                        <li>Yeni Veritabanı Modeli: `ShowcasePost` için model, schema ve CRUD operasyonları oluşturulacak.</li>
+                        <li>Bulut Depolama: Dosyaları saklamak için AWS S3 gibi bir bulut depolama servisi entegre edilecek.</li>
+                        <li>API Endpoint'leri: Dosya yükleme, listeleme ve detay görme için yeni router'lar yazılacak.</li>
+                        <li>Autodesk Platform Services (Forge) Entegrasyonu: Yüklenen 3D dosyaların görüntülenebilir formata çevrilmesi için Autodesk API'leriyle iletişim kurulacak.</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong class="font-semibold text-lg text-gray-800">Faz 2: Proje Vitrini - Frontend Entegrasyonu</strong>
+                    <p class="ml-6 text-sm text-gray-600">Backend'de hazırlanan vitrin altyapısını Flutter uygulamasında kullanıcıların görebileceği ve etkileşime girebileceği bir arayüze dönüştüreceğiz.</p>
+                     <ul class="list-['-_'] list-inside ml-10 mt-2">
+                        <li>Yeni Ekranlar: Vitrin akışı, gönderi detayı ve dosya yükleme için yeni Flutter ekranları tasarlanacak.</li>
+                        <li>State Management: Vitrin verilerini yönetmek için `ShowcaseProvider` oluşturulacak.</li>
+                        <li>3D Görüntüleyici: Autodesk'in web tabanlı görüntüleyicisi, `flutter_inappwebview` paketi kullanılarak uygulama içine gömülecek.</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong class="font-semibold text-lg text-gray-800">Faz 3: Lansman Öncesi Son Dokunuşlar</strong>
+                    <p class="ml-6 text-sm text-gray-600">Uygulamanın temel özellikleri tamamlandıktan sonra, kullanıcı deneyimini zenginleştirecek ve güvenliği artıracak son adımları atacağız.</p>
+                    <ul class="list-['-_'] list-inside ml-10 mt-2">
+                        <li><strong>Google ile Giriş Entegrasyonu:</strong> Kullanıcılar için hızlı ve kolay bir giriş alternatifi sunulacak.</li>
+                        <li>E-posta Doğrulama: Yeni kaydolan kullanıcıların e-posta adreslerini doğrulaması için bir mekanizma eklenecek.</li>
+                        <li>Kapsamlı Test ve Hata Giderme: Tüm kullanıcı akışları baştan sona test edilecek ve bulunan hatalar giderilecek.</li>
+                        <li>UI/UX Cilalaması: Uygulama genelinde görsel tutarlılık ve kullanım kolaylığı artırılacak.</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <div class="section-card border-l-4 border-teal-500">
+            <h2 class="flex items-center text-teal-800">
+                <span class="text-3xl mr-3">🎯</span>
+                Sıradaki Adımımız
+            </h2>
+            <p class="text-gray-700">
+                Yol haritamızın ilk adımı olan **Proje Vitrini** özelliğinin **Backend** tarafına başlamayı öneriyorum. Bu, en heyecan verici ve en karmaşık özelliğimiz olduğu için temelini sağlam atmamız çok önemli.
+            </p>
+            <p class="mt-4 text-gray-700">
+                Bu plana göre, ilk işimiz veritabanımıza `ShowcasePost` adında yeni bir tablo eklemek olacak.
+            </p>
+            <p class="mt-4 text-gray-700 font-semibold">
+                Eğer bu plan sana uygunsa, bu yeni modeli oluşturmana yardımcı olmak için lütfen bana `app/models/` dizinindeki herhangi bir model dosyasını (örneğin `project.py`) gönder. Bu, mevcut yapını ve standartlarını görerek ona uygun yeni bir model dosyası oluşturmamı sağlayacak.
+            </p>
+        </div>
+    </div>
+</body>
+</html>
+

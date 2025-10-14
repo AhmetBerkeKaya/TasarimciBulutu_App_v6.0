@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tasarımcı Bulutu - Teknik Doküman ve Tanıtım</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://kit.fontawesome.com/1a2b81b2a7.js" crossorigin="anonymous"></script>
+    <style>
+        :root {
+            --primary-color: #4F46E5;
+            --secondary-color: #10B981;
+            --background-color: #F9FAFB;
+            --card-background: #FFFFFF;
+            --text-color: #1F2937;
+            --subtle-text-color: #6B7280;
+            --border-color: #E5E7EB;
+            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            padding: 4rem 1rem;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border-radius: 0 0 20px 20px;
+        }
+
+        header h1 {
+            font-size: 3rem;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        header p {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            margin-top: 0.5rem;
+        }
+
+        nav {
+            background-color: var(--card-background);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            padding: 1rem;
+            margin-top: -2rem;
+            position: sticky;
+            top: 1rem;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        nav a {
+            color: var(--subtle-text-color);
+            text-decoration: none;
+            font-weight: 600;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        nav a:hover, nav a.active {
+            color: var(--primary-color);
+            background-color: #EEF2FF;
+        }
+
+        .section {
+            background-color: var(--card-background);
+            padding: 2.5rem;
+            margin-top: 2rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border-color);
+        }
+
+        .section h2 {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin-top: 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+        }
+        
+        .section h2 .fas {
+            margin-right: 1rem;
+        }
+
+        .section h3 {
+            font-size: 1.5rem;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            color: #374151;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .tech-card {
+            background-color: #F9FAFB;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+
+        .tech-card h4 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.1rem;
+            color: var(--text-color);
+        }
+
+        .tech-card p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--subtle-text-color);
+        }
+
+        code {
+            background-color: #E5E7EB;
+            padding: 0.2em 0.4em;
+            margin: 0;
+            font-size: 85%;
+            border-radius: 3px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        
+        .flow-step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+        }
+        
+        .flow-step .icon {
+            font-size: 1.5rem;
+            color: var(--secondary-color);
+            margin-right: 1.5rem;
+            width: 30px;
+            text-align: center;
+        }
+        
+        .flow-step .content {
+            flex: 1;
+        }
+
+        .flow-step h4 {
+            margin: 0 0 0.25rem 0;
+        }
+        
+        .flow-step p {
+            margin: 0;
+            color: var(--subtle-text-color);
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            margin-top: 2rem;
+            color: var(--subtle-text-color);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            header {
+                padding: 3rem 1rem;
+            }
+            header h1 {
+                font-size: 2.5rem;
+            }
+            .section {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Tasarımcı Bulutu</h1>
+        <p>Türkiye'nin Yetenek ve Proje Ekosistemi - Teknik Doküman ve Tanıtım</p>
+    </header>
+
+    <div class="container">
+        <nav id="navbar">
+            <a href="#giris">Giriş</a>
+            <a href="#mimari">Genel Mimari</a>
+            <a href="#backend">Backend Mimarisi</a>
+            <a href="#frontend">Frontend Mimarisi</a>
+            <a href="#akislar">Kullanıcı Akışları</a>
+            <a href="#3d-akis">3D Model İşleme Akışı</a>
+        </nav>
+
+        <section id="giris" class="section">
+            <h2><i class="fas fa-rocket"></i> Projeye Genel Bakış</h2>
+            <p>
+                <strong>Tasarımcı Bulutu</strong>, Türkiye'deki serbest çalışan (freelance) CAD/BIM uzmanları ile bu yeteneklere proje bazlı ihtiyaç duyan firmaları bir araya getiren yenilikçi bir platformdur. Sadece bir iş bulma sitesi olmanın ötesinde, yeteneklerin doğrulanabildiği, geliştirilebildiği ve profesyonel bir portfolyo oluşturulabildiği bütünleşik bir ekosistem sunar.
+            </p>
+            <p>
+                Bu doküman, projenin teknik mimarisini, kullanılan teknolojileri ve temel işleyiş mantığını detaylı bir şekilde açıklamaktadır.
+            </p>
+        </section>
+
+        <section id="mimari" class="section">
+            <h2><i class="fas fa-sitemap"></i> Genel Mimari</h2>
+            <p>Uygulama, modern ve ölçeklenebilir bir mimari üzerine kurulmuştur. Temel olarak üç ana bileşenden oluşur:</p>
+            <div class="grid">
+                <div class="tech-card">
+                    <h4><i class="fas fa-mobile-alt"></i> Frontend (Flutter)</h4>
+                    <p>iOS ve Android için geliştirilen, kullanıcıların platformla etkileşime girdiği mobil uygulama.</p>
+                </div>
+                <div class="tech-card">
+                    <h4><i class="fas fa-server"></i> Backend (FastAPI)</h4>
+                    <p>Tüm iş mantığını yöneten, veritabanı ile iletişim kuran ve mobil uygulamaya veri sağlayan API sunucusu.</p>
+                </div>
+                <div class="tech-card">
+                    <h4><i class="fab fa-aws"></i> Bulut Altyapısı (AWS)</h4>
+                    <p>Veritabanı, dosya depolama ve sunucusuz (serverless) işlemler gibi kritik altyapı servislerini barındıran bulut platformu.</p>
+                </div>
+            </div>
+            <div class="mermaid" style="margin-top: 2rem; background: #fff; padding: 1rem; border-radius: 8px;">
+                graph TD
+                    A[<i class='fas fa-mobile-alt'></i> Flutter Mobil Uygulama] -->|HTTP API İstekleri| B(<i class='fas fa-server'></i> FastAPI Backend);
+                    B -->|SQL Sorguları| C[<i class='fas fa-database'></i> PostgreSQL on RDS];
+                    B -->|Dosya Yükleme/İndirme| D[<i class='fab fa-aws'></i> AWS S3];
+                    D -- S3 Trigger --> E[<i class='fas fa-bolt'></i> AWS Lambda];
+                    E -->|3D İşleme| F[<i class='fas fa-cube'></i> Autodesk Platform Services];
+                    E -->|Sonuçları Yazar| D;
+                    E -->|DB Güncelleme| C;
+            </div>
+        </section>
+
+        <section id="backend" class="section">
+            <h2><i class="fas fa-cogs"></i> Backend Mimarisi (FastAPI)</h2>
+            <p>Uygulamanın beyni olan backend, Python tabanlı modern bir web framework'ü olan FastAPI ile geliştirilmiştir. Hız, ölçeklenebilirlik ve kolay geliştirme imkanları sunar.</p>
+            <h3>Teknoloji Yığını</h3>
+            <div class="grid">
+                <div class="tech-card"><h4>Framework</h4><p>FastAPI</p></div>
+                <div class="tech-card"><h4>Veritabanı</h4><p>PostgreSQL (AWS RDS üzerinde)</p></div>
+                <div class="tech-card"><h4>ORM</h4><p>SQLAlchemy</p></div>
+                <div class="tech-card"><h4>Veri Doğrulama</h4><p>Pydantic</p></div>
+                <div class="tech-card"><h4>Asenkron İşlemler</h4><p>Uvicorn & Gunicorn</p></div>
+                <div class="tech-card"><h4>Kimlik Doğrulama</h4><p>JWT (JSON Web Tokens)</p></div>
+            </div>
+            <h3>Dosya Yapısı ve Sorumluluklar</h3>
+            <ul>
+                <li><code>/app/routers</code>: Her bir modülün (kullanıcı, proje, vitrin vb.) API endpoint'lerini tanımlar.</li>
+                <li><code>/app/crud</code>: Veritabanı üzerinde gerçekleştirilen temel CRUD (Create, Read, Update, Delete) işlemlerini içerir.</li>
+                <li><code>/app/schemas</code>: Pydantic modelleri ile API'den gelen ve giden verinin yapısını ve kurallarını tanımlar.</li>
+                <li><code>/app/models</code>: SQLAlchemy modelleri ile veritabanı tablolarını Python sınıfları olarak temsil eder.</li>
+                <li><code>/app/utils</code>: E-posta gönderimi, S3 işlemleri gibi yardımcı fonksiyonları barındırır.</li>
+                <li><code>main.py</code>: Uygulamanın ana başlangıç noktasıdır. Router'ları ve middleware'leri birleştirir.</li>
+            </ul>
+        </section>
+        
+        <section id="frontend" class="section">
+            <h2><i class="fab fa-uncharted"></i> Frontend Mimarisi (Flutter)</h2>
+            <p>Kullanıcı deneyiminin hayat bulduğu frontend, Google'ın cross-platform (tek kod tabanı ile hem iOS hem Android) uygulama geliştirme framework'ü olan Flutter ile inşa edilmiştir.</p>
+            <h3>Teknoloji Yığını ve Kütüphaneler</h3>
+            <div class="grid">
+                <div class="tech-card"><h4>Framework</h4><p>Flutter</p></div>
+                <div class="tech-card"><h4>State Management</h4><p>Provider</p></div>
+                <div class="tech-card"><h4>HTTP İstemcisi</h4><p>Dio</p></div>
+                <div class="tech-card"><h4>Güvenli Depolama</h4><p>flutter_secure_storage</p></div>
+                <div class="tech-card"><h4>3D Görüntüleyici</h4><p>flutter_inappwebview + Autodesk Viewer</p></div>
+                <div class="tech-card"><h4>Paketleme</h4><p>archive</p></div>
+            </div>
+             <h3>Dosya Yapısı ve Sorumluluklar</h3>
+            <ul>
+                <li><code>/lib/core</code>: Servisler (API), state yönetimi (Provider) ve tema gibi uygulamanın çekirdek bileşenlerini içerir.</li>
+                <li><code>/lib/data/models</code>: Backend'den gelen JSON verilerini Dart sınıflarına dönüştüren veri modellerini barındırır.</li>
+                <li><code>/lib/features</code>: Uygulamanın her bir özelliğini (kimlik doğrulama, proje vitrini, profil vb.) kendi içinde bir modül olarak gruplar. Her modül kendi ekranlarını (screens) ve widget'larını içerir.</li>
+                <li><code>/lib/common_widgets</code>: Uygulamanın farklı yerlerinde tekrar tekrar kullanılan genel widget'ları (örn: yükleme göstergesi) içerir.</li>
+                <li><code>main.dart</code>: Flutter uygulamasının başlangıç noktasıdır. Provider'ları ve ana yönlendirmeyi tanımlar.</li>
+            </ul>
+        </section>
+
+        <section id="akislar" class="section">
+            <h2><i class="fas fa-stream"></i> Temel Kullanıcı Akışları</h2>
+            <p>Uygulamanın temel işlevlerinin adım adım nasıl çalıştığı aşağıda özetlenmiştir.</p>
+            
+            <h3>Kimlik Doğrulama</h3>
+            <div class="flow-step">
+                <div class="icon"><i class="fas fa-user-plus"></i></div>
+                <div class="content"><h4>Kayıt Olma</h4><p>Kullanıcılar (Freelancer/Firma) e-posta ve şifre ile kayıt olur. Veriler backend'e gönderilir ve veritabanına yeni bir kullanıcı eklenir.</p></div>
+            </div>
+            <div class="flow-step">
+                <div class="icon"><i class="fas fa-sign-in-alt"></i></div>
+                <div class="content"><h4>Giriş Yapma</h4><p>Kullanıcı e-posta ve şifresi ile giriş yapar. Backend, bilgileri doğrulayıp bir Access Token ve Refresh Token üretir. Bu token'lar Flutter'da güvenli bir şekilde saklanır.</p></div>
+            </div>
+
+            <h3>Proje Yönetimi</h3>
+            <div class="flow-step">
+                <div class="icon"><i class="fas fa-bullhorn"></i></div>
+                <div class="content"><h4>Firma Proje Yayınlar</h4><p>Firma rolündeki kullanıcı, proje detaylarını (başlık, bütçe, açıklama vb.) girerek yeni bir proje oluşturur. Bu proje veritabanına kaydedilir.</p></div>
+            </div>
+             <div class="flow-step">
+                <div class="icon"><i class="fas fa-file-signature"></i></div>
+                <div class="content"><h4>Freelancer Projeye Başvurur</h4><p>Freelancer, proje listesinden bir projeyi seçer ve başvuru yapar. Başvurusu, proje ile ilişkilendirilerek veritabanına kaydedilir.</p></div>
+            </div>
+
+            <h3>Proje Vitrini</h3>
+             <div class="flow-step">
+                <div class="icon"><i class="fas fa-upload"></i></div>
+                <div class="content"><h4>Tasarımcı Model Yükler</h4><p>Kullanıcı, "Proje Vitrini" sayfasından bir başlık, açıklama ve 3D model dosyası (.obj) seçerek yeni bir gönderi oluşturur. Bu, aşağıda detaylandırılan 3D model işleme akışını tetikler.</p></div>
+            </div>
+        </section>
+        
+        <section id="3d-akis" class="section">
+            <h2><i class="fas fa-cubes"></i> 3D Model İşleme Akışı: Detaylı Analiz</h2>
+            <p>Uygulamanın en karmaşık ve teknolojik olarak en gelişmiş özelliği, kullanıcıların yüklediği 3D modellerin işlenip görüntülenebilir hale getirilmesidir. Bu süreç, Frontend, Backend ve AWS servislerinin senkronize bir şekilde çalışmasıyla gerçekleşir.</p>
+            <div class="mermaid">
+                sequenceDiagram
+                    participant Flutter as <i class='fas fa-mobile-alt'></i> Flutter App
+                    participant FastAPI as <i class='fas fa-server'></i> FastAPI Backend
+                    participant S3 as <i class='fab fa-aws'></i> AWS S3
+                    participant Lambda as <i class='fas fa-bolt'></i> AWS Lambda
+                    participant APS as <i class='fas fa-cube'></i> Autodesk (APS)
+                    participant RDS as <i class='fas fa-database'></i> PostgreSQL DB
+
+                    Flutter->>FastAPI: 1. Yüklemeyi Başlat (dosya adı, başlık)
+                    FastAPI->>RDS: Post kaydı oluştur (status: PENDING)
+                    FastAPI->>Flutter: 2. Presigned URL ve Post ID'yi döndür
+                    Note right of Flutter: Kullanıcı .obj dosyasını seçer, <br>uygulama dosyayı ZIP'ler.
+                    Flutter->>S3: 3. ZIP dosyasını Presigned URL'e yükle (uploads-raw/)
+                    S3-->>Lambda: 4. S3 Trigger: Lambda'yı tetikle
+                    Lambda->>RDS: 5. Post durumunu GÜNCELLE (status: PROCESSING)
+                    Lambda->>APS: 6. APS Token'ı al
+                    Lambda->>APS: 7. Dosyayı APS Bucket'ına yükle
+                    Lambda->>APS: 8. Çeviri İşini Başlat (.obj -> .svf)
+                    loop 9. Bekleme Döngüsü
+                        Lambda->>APS: İş durumu tamamlandı mı?
+                    end
+                    APS-->>Lambda: 10. İş Tamamlandı (Manifest Dosyası)
+                    Lambda->>APS: 11. Manifest'i oku, .svf ve .png'yi indir
+                    Lambda->>S3: 12. İşlenmiş dosyaları S3'e yükle (models-processed/, thumbnails/)
+                    Lambda->>RDS: 13. Post kaydını GÜNCELLE (URL'ler, URN, status: COMPLETED)
+            </div>
+        </section>
+
+    </div>
+    
+    <footer>
+        <p>Tasarımcı Bulutu Projesi &copy; 2025</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: {
+            primaryColor: '#F9FAFB',
+            primaryTextColor: '#1F2937',
+            lineColor: '#4F46E5',
+            actorBkg: '#EEF2FF',
+            actorBorder: '#4F46E5'
+        }});
+    </script>
+    <script>
+        // Smooth scrolling for navigation
+        document.querySelectorAll('nav a').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+    </script>
+</body>
+</html>

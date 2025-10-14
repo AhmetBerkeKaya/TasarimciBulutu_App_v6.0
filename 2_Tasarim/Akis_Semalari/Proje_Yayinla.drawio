@@ -1,0 +1,115 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36" version="27.1.6">
+  <diagram name="Sayfa -1" id="-iEFgrL939uUR6sFIO7A">
+    <mxGraphModel dx="864" dy="450" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="Dym9BpoewiteTKxvEpRt-3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="Dym9BpoewiteTKxvEpRt-1" target="Dym9BpoewiteTKxvEpRt-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-1" value="Başla" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="330" y="80" width="100" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="Dym9BpoewiteTKxvEpRt-2" target="Dym9BpoewiteTKxvEpRt-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-2" value="Firma Dashboard&#39;a Gir" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="320" y="180" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="Dym9BpoewiteTKxvEpRt-4">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="180" y="340" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-4" value="&quot;Yeni Proje Yayınla&quot; Butonuna Tıkla" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="320" y="260" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-73" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="Dym9BpoewiteTKxvEpRt-70" target="Dym9BpoewiteTKxvEpRt-72">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-70" value="Proje Başlığı Gir" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="340" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-78" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="Dym9BpoewiteTKxvEpRt-72" target="Dym9BpoewiteTKxvEpRt-77">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-72" value="Proje Açıklaması&lt;div&gt;Gir&lt;/div&gt;" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;" vertex="1" parent="1">
+          <mxGeometry x="250" y="340" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-81" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="Dym9BpoewiteTKxvEpRt-75" target="Dym9BpoewiteTKxvEpRt-80">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="570" y="460" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-75" value="Teslim Tarihi Gir" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;" vertex="1" parent="1">
+          <mxGeometry x="510" y="340" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-79" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="Dym9BpoewiteTKxvEpRt-77" target="Dym9BpoewiteTKxvEpRt-75">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-77" value="Kategori Seç" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="340" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-83" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="Dym9BpoewiteTKxvEpRt-80" target="Dym9BpoewiteTKxvEpRt-82">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-80" value="&quot;Yayınla&quot; Butonuna Tıkla" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="430" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-85" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="Dym9BpoewiteTKxvEpRt-82" target="Dym9BpoewiteTKxvEpRt-84">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-82" value="Otomatik İçerik Kontrolü" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="250" y="430" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-87" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="Dym9BpoewiteTKxvEpRt-84" target="Dym9BpoewiteTKxvEpRt-86">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-94" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="Dym9BpoewiteTKxvEpRt-84" target="Dym9BpoewiteTKxvEpRt-93">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-84" value="İçerik Uygun&lt;div&gt;mu?&lt;/div&gt;" style="rhombus;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="257.5" y="520" width="105" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-90" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="Dym9BpoewiteTKxvEpRt-86" target="Dym9BpoewiteTKxvEpRt-89">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-86" value="Proje Yayına Al" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="435" y="530" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-88" value="Evet" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="354" y="530" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-92" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="Dym9BpoewiteTKxvEpRt-89" target="Dym9BpoewiteTKxvEpRt-91">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-89" value="E-posta Bildirimi Gönder" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="435" y="610" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-98" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="Dym9BpoewiteTKxvEpRt-91" target="Dym9BpoewiteTKxvEpRt-97">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-91" value="Freelancerlar Projeyi Görür" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="435" y="690" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-96" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="Dym9BpoewiteTKxvEpRt-93" target="Dym9BpoewiteTKxvEpRt-95">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-93" value="Firmaya Uygunsuz İçerik Bildir" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="65" y="530" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-99" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="Dym9BpoewiteTKxvEpRt-95" target="Dym9BpoewiteTKxvEpRt-97">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-95" value="Düzenleme için Firmaya Geri Dön" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="65" y="610" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="Dym9BpoewiteTKxvEpRt-97" value="Bitir" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="250" y="693.75" width="102.5" height="52.5" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

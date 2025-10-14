@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  TasarimciBulutu Backend: 3D Model Processor and Recommendation Engine
+
+# Globals: Tüm fonksiyonlar için ortak ayarlar.
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures: [x86_64]
+    VpcConfig:
+      SecurityGroupIds: !Split [',', !Ref SecurityGroupIds]
+      SubnetIds: !Ref SubnetIds
+    Environment:
+      Variables:
+        DATABASE_URL: !Ref DatabaseUrl
+        SECRET_KEY: !Ref SecretKey
+        ENCRYPTION_KEY: !Ref EncryptionKey
+        MAIL_USERNAME: !Ref MailUsername
+        MAIL_PASSWORD: !Ref MailPassword
+        MAIL_FROM: !Ref MailFrom
+        MAIL_PORT: !Ref MailPort
+        MAIL_SERVER: !Ref MailServer
+        AWS_S3_BUCKET_NAME: !Ref S3BucketName
+
+Parameters:
+  S3BucketName:
+    Type: String
+  DatabaseUrl:
+    Type: String
+    NoEcho: true
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+  SecurityGroupIds:
+    Type: String
+  SecretKey:
+    Type: String
+    NoEcho: true
+  EncryptionKey:
+    Type: String
+    NoEcho: true
+  MailUsername:
+    Type: String
+    NoEcho: true
+  MailPassword:
+    Type: String
+    NoEcho: true
+  MailFrom:
+    Type: String
+  MailPort:
+    Type: Number
+  MailServer:
+    Type: String
+  ApsClientId:
+    Type: String
+    NoEcho: true
+  ApsClientSecret:
+    Type: String
+    NoEcho: true
+
+Resources:
+  ModelProcessorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: TasarimciBulutu-ModelProcessor
+      # --- CodeUri BURADA BELİRTİLMELİ ---
+      CodeUri: .
+      Handler: model_processor.lambda_function.lambda_handler
+      Timeout: 900
+      MemorySize: 1024
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref S3BucketName
+      Environment:
+        Variables:
+          # Sadece bu fonksiyona özel değişkenler:
+          PROCESSED_BUCKET_NAME: !Ref S3BucketName 
+          APS_CLIENT_ID: !Ref ApsClientId
+          APS_CLIENT_SECRET: !Ref ApsClientSecret
+      
+  RecommenderFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: TasarimciBulutu-Recommender
+      # --- CodeUri BURADA DA BELİRTİLMELİ ---
+      CodeUri: .
+      Handler: recommender_lambda.handler.handler
+      Timeout: 300
+      MemorySize: 256
+      Events:
+        ScheduledTrigger:
+          Type: Schedule
+          Properties:
+            Name: TasarimciBulutu-Recommender-Schedule
+            Description: "Proje önerilerini saatte bir hesaplayan zamanlayıcı."
+            Schedule: "rate(1 hour)"
+            Enabled: True

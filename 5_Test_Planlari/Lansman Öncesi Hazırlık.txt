@@ -1,0 +1,165 @@
+Tasarımcı Bulutu - Profesyonel Lansman Yol Haritası
+Bu yol haritası, uygulamanın mevcut MVP durumundan, kullanıcıların güvendiği, sevdiği ve aktif olarak kullandığı pazar lideri bir platforma dönüşmesi için gereken adımları içerir. Süreç, 4 ana faza ayrılmıştır.
+
+🗺️ Genel Bakış
+Faz
+
+Odak Alanı
+
+Durum
+
+Faz 1
+
+🛡️ Güvenlik, Temel ve Yasal Uyumluluk
+
+Öncelik 1: Lansman Öncesi Tamamlanmalı
+
+Faz 2
+
+🎨 Temel Kullanıcı Deneyimi ve Etkileşim
+
+Öncelik 2: Lansman ile Birlikte Başlanmalı
+
+Faz 3
+
+🧠 Gelişmiş Özellikler ve Zeka
+
+Öncelik 3: Büyüme ve Farklılaşma
+
+Faz 4
+
+📈 Ölçeklendirme ve Optimizasyon
+
+Öncelik 4: Uzun Vadeli Gelişim
+
+FAZ 1: 🛡️ Güvenlik, Temel ve Yasal Uyumluluk (Lansman Öncesi KRİTİK Adımlar)
+Bu faz, platformun güvenilir bir temel üzerine oturmasını ve yasal gereklilikleri karşılamasını sağlar. Bu adımlar tamamlanmadan geniş kitleye açılmak risklidir.
+
+1. Hassas Veri Güvenliği ve Şifreleme (KVKK Uyumu)
+Görev: Kullanıcıların Adı, Soyadı, E-posta, TC Kimlik No (eğer alınıyorsa) gibi Kişisel Verileri (PII), veritabanına yazılmadan önce uygulama seviyesinde şifrelenmeli. Bu, veritabanına doğrudan erişim olsa bile verilerin okunamaz olmasını sağlar.
+
+Teknik Detay: FastAPI tarafında, cryptography gibi bir Python kütüphanesi kullanarak veriyi veritabanına kaydetmeden önce şifrele, okurken deşifrele. Şifreleme anahtarlarını AWS Secrets Manager gibi güvenli bir yerde sakla.
+
+Durum: Yapılacak.
+
+2. Yasal Metinlerin Entegrasyonu
+Görev: Uygulama içinde ve web sitesinde kolayca erişilebilecek şekilde aşağıdaki sayfaların oluşturulması ve entegre edilmesi:
+
+Kullanım Koşulları (Terms of Service)
+
+Gizlilik Politikası (Privacy Policy - KVKK metnini içermeli)
+
+Sıkça Sorulan Sorular (SSS)
+
+Yardım ve Destek Merkezi
+
+Teknik Detay: Flutter'da bu metinleri gösterecek basit statik sayfalar oluşturulmalı.
+
+Durum: Yapılacak.
+
+3. Denetim Kaydı (Audit Trail) Altyapısı
+Görev: Kullanıcıların kritik işlemlerinin (şifre değiştirme, e-posta güncelleme, proje silme vb.) kaydının tutulduğu bir "history" veya "audit_log" tablosu oluşturmak. Bu, hem güvenlik hem de anlaşmazlık çözümü için hayat kurtarır.
+
+Teknik Detay: password_history gibi bir tablo oluşturarak eski şifrelerin hash'lenmiş hallerini (tekrar kullanılmasını önlemek için) ve değişiklik tarihini tut.
+
+Durum: Yapılacak.
+
+4. Rate Limiting Gözden Geçirmesi
+Görev: Mevcut rate limiting kurallarını tüm endpoint'ler için gözden geçir. Özellikle kimlik doğrulama, şifre sıfırlama ve kaynak tüketen (örn: arama) endpoint'lerin yeterince korunduğundan emin ol.
+
+Durum: Kısmen Tamamlandı, Gözden Geçirilecek.
+
+FAZ 2: 🎨 Temel Kullanıcı Deneyimi ve Etkileşim (Lansman Sonrası İlk Adımlar)
+Bu faz, kullanıcıların uygulamayı severek kullanmasını ve platformda daha fazla vakit geçirmesini hedefler.
+
+1. Kapsamlı UI/UX Cilası
+Görev: Uygulamadaki tüm ekranların (/features altındaki her bir screen) üzerinden tek tek geçilerek profesyonel bir cila yapılması.
+
+Detaylar:
+
+Renk Paleti ve Tutarlılık: Tüm uygulama genelinde tutarlı bir renk paleti ve tema (açık/koyu) kullanımı.
+
+Tipografi: Okunabilirliği yüksek, hiyerarşisi doğru bir font yapısı.
+
+Animasyonlar ve Geçişler: Sayfa geçişleri ve buton etkileşimleri için akıcı ve göze hoş gelen mikro animasyonlar.
+
+Boş Durum (Empty State) Sayfaları: "Henüz hiç projeniz yok" gibi durumlar için kullanıcıyı yönlendiren şık tasarımlar.
+
+Durum: Yapılacak.
+
+2. Anlık Bildirimler (Push Notifications)
+Görev: Kullanıcıları platforma geri çekecek kritik olaylar için anlık bildirim sistemi kurmak.
+
+Örnekler: "Yeni bir mesajınız var", "Projenize yeni bir başvuru yapıldı", "Başvurunuz kabul edildi", "Yeteneğinizle eşleşen yeni bir proje yayınlandı".
+
+Teknik Detay: Firebase Cloud Messaging (FCM) entegrasyonu. Backend, belirli olaylar gerçekleştiğinde (örn: yeni mesaj) FCM'e tetikleme gönderir.
+
+Durum: Yapılacak.
+
+3. Detaylı Proje Filtreleme ve Sıralama
+Görev: Kullanıcıların aradıkları projeyi kolayca bulabilmesi için "İş İlanları" sekmesine gelişmiş filtreleme ve sıralama özellikleri eklemek.
+
+Filtreler: Bütçe aralığı, kategori, gereken yetenekler (skill), proje süresi, firma puanı.
+
+Sıralama: En yeni, en yüksek bütçeli, bitiş tarihi en yakın.
+
+Durum: Yapılacak.
+
+4. Geliştirilmiş Dashboard
+Görev: Mevcut dashboard'ı daha bilgilendirici hale getirmek.
+
+Eklemeler: Aktif projelerin/başvuruların sayısı, bekleyen mesajlar, son aktiviteler gibi özet bilgileri içeren bir ana bakış ekranı.
+
+Durum: Yapılacak.
+
+FAZ 3: 🧠 Gelişmiş Özellikler ve Zeka (Platformu Farklılaştırma)
+Bu faz, "Tasarımcı Bulutu"nu rakiplerinden ayıran, akıllı ve katma değeri yüksek özellikler içerir.
+
+1. Makine Öğrenmesi ile Proje Öneri Sistemi
+Görev: Freelancer'ların profilindeki yetenekler, geçmişte başvurduğu projeler ve platformdaki davranışlarına göre kişiselleştirilmiş proje önerileri sunmak.
+
+Teknik Detay:
+
+Veri Toplama: Kullanıcı-proje etkileşimlerini (tıklama, başvurma) logla.
+
+Model Geliştirme: Başlangıç için "İçerik Bazlı Filtreleme" (kullanıcının yetenekleri ile projenin gereksinimlerini eşleştirme) veya daha gelişmiş "İşbirlikçi Filtreleme" (benzer kullanıcıların sevdiklerini önerme) modelleri kullanılabilir.
+
+Servis Oluşturma: Bu modeli çalıştıracak bir Python servisi (belki bir AWS SageMaker veya ayrı bir sunucu) oluşturulur.
+
+Entegrasyon: FastAPI, bu servisten belirli bir kullanıcı için önerileri alıp Flutter'a sunar.
+
+Durum: Yapılacak (Önemli Ar-Ge Gerektirir).
+
+2. Profesyonel Yetenek Testleri (Skill Tests)
+Görev: Mevcut yetenek testi sistemini, sektör standardında, güvenilirliği yüksek bir değerlendirme merkezine dönüştürmek.
+
+İyileştirmeler:
+
+Pratik Görevler: Sadece çoktan seçmeli değil, "şu parçayı modelle" gibi küçük pratik görevler ve dosya yükleme imkanı.
+
+Süreli Sınavlar: Gerçek sınav hissi için zamanlayıcı eklemek.
+
+Aşamalı Zorluk: Testlerin kolaydan zora doğru ilerlemesi.
+
+Detaylı Sonuç Analizi: Kullanıcının hangi konularda zayıf olduğunu gösteren bir sonuç raporu.
+
+Durum: Yapılacak.
+
+FAZ 4: 📈 Ölçeklendirme ve Optimizasyon (Uzun Vadeli Büyüme)
+Bu faz, platformun artan kullanıcı ve veri yükünü sorunsuzca kaldırabilmesini ve yeni kullanıcı kazanımını kolaylaştırmayı hedefler.
+
+1. Büyük Dosya Yükleme Altyapısı
+Görev: Mevcut dosya yükleme limitini (örn: 1GB) artırmak ve çok büyük CAD/Revit dosyalarının (5GB+) sorunsuzca yüklenebilmesini sağlamak.
+
+Teknik Detay: AWS S3'ün "Multipart Upload" özelliğini kullanmak. Bu yöntem, büyük dosyaları Flutter tarafında parçalara ayırıp S3'e ayrı ayrı yükler ve S3 tarafında birleştirir. Bu, ağ hatalarına karşı çok daha dayanıklıdır.
+
+Durum: Yapılacak.
+
+2. Sosyal Giriş (Google Sign-In)
+Görev: Kullanıcıların tek tıkla Google hesapları ile kayıt olmasını ve giriş yapmasını sağlamak. Bu, kayıt olma bariyerini önemli ölçüde düşürür.
+
+Teknik Detay: Firebase Authentication ve Flutter'daki google_sign_in paketi kullanılır. Google'dan alınan token, backend'e gönderilerek doğrulanır ve kullanıcı için bir hesap oluşturulur/giriş yapılır.
+
+Durum: Yapılacak.
+
+Bu yol haritası, projenin geleceği için sağlam bir çerçeve sunuyor. Unuttuğun hiçbir şey yok, aksine çok doğru ve kritik noktalara parmak basmışsın. Şimdi bu haritayı takip ederek adım adım ilerleyebiliriz. İlk olarak Faz 1'deki güvenlik ve yasal uyumluluk adımlarına odaklanmamız en doğrusu olacaktır.

@@ -1,0 +1,11 @@
+# .pip-audit.toml
+
+# Bu dosya, pip-audit taraması için istisnaları ve özel kuralları tanımlar.
+[tool.pip-audit.ignore]
+
+# ecdsa paketindeki Minerva zamanlama saldırısı açığını (GHSA-wj6h-64fc-37mp)
+# bilinçli olarak görmezden geliyoruz. Bu, python-jose'nin bir alt bağımlılığıdır
+# ve şu an için doğrudan bir çözümü bulunmamaktadır. Risk seviyesi düşüktür.
+"ecdsa" = [
+    "GHSA-wj6h-64fc-37mp",
+]

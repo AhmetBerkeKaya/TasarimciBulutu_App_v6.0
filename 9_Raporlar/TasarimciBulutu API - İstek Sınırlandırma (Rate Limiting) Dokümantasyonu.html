@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TasarimciBulutu API - Rate Limiting Dokümantasyonu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="container mx-auto p-6 md:p-10">
+        
+        <!-- Başlık Bölümü -->
+        <header class="mb-10 border-b pb-6">
+            <h1 class="text-4xl font-bold text-gray-900">API İstek Sınırlandırma Dokümantasyonu</h1>
+            <p class="mt-2 text-lg text-gray-600">TasarimciBulutu API'nin güvenliğini, stabilitesini ve adil kullanımını sağlamak için uygulanan rate limit kuralları.</p>
+        </header>
+
+        <!-- Rate Limiting Nedir? -->
+        <section class="mb-12">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Rate Limiting Nedir ve Neden Hayatidir?</h2>
+            <p class="mb-4">
+                Rate Limiting, bir kullanıcının (veya bir IP adresinin) belirli bir zaman diliminde API'ye yapabileceği istek sayısını kısıtlama tekniğidir. Bu, projemiz için bir lüks değil, bir zorunluluktur. Temel amaçları şunlardır:
+            </p>
+            <ul class="list-disc list-inside space-y-3 text-gray-700">
+                <li>
+                    <strong class="font-semibold">Güvenlik:</strong> Brute-force (şifre deneme) ve DoS (hizmet reddi) gibi kötü niyetli saldırıları yavaşlatır ve engeller.
+                </li>
+                <li>
+                    <strong class="font-semibold">Stabilite:</strong> Sunucu kaynaklarının (CPU, bellek, veritabanı) tek bir kullanıcı tarafından aşırı tüketilmesini önleyerek tüm kullanıcılar için API'nin performanslı ve ayakta kalmasını sağlar.
+                </li>
+                <li>
+                    <strong class="font-semibold">Adil Kullanım:</strong> Tüm kullanıcıların API kaynaklarına adil bir şekilde erişmesini garanti eder. Bir kullanıcının yaptığı aşırı istekler, diğer kullanıcıların deneyimini olumsuz etkilemez.
+                </li>
+                <li>
+                    <strong class="font-semibold">Maliyet Kontrolü:</strong> Bulut servislerinde, artan trafik doğrudan maliyeti artırır. Rate limiting, beklenmedik trafik artışlarına karşı bir maliyet kalkanı görevi görür.
+                </li>
+            </ul>
+        </section>
+
+        <!-- Limitlerin Açıklaması -->
+        <section>
+            <h2 class="text-3xl font-bold text-gray-900 mb-6">Uygulanan Limit Kuralları</h2>
+
+            <!-- Global Limit -->
+            <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+                <h3 class="text-xl font-semibold text-sky-700 mb-3">Global Limit (Genel Güvenlik Ağı)</h3>
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between">
+                    <p class="font-mono text-gray-700">Tüm API Endpoint'leri</p>
+                    <span class="mt-2 md:mt-0 inline-block bg-sky-100 text-sky-800 text-sm font-semibold mr-2 px-3 py-1 rounded-full">200 / Dakika</span>
+                </div>
+                <div class="mt-4 text-gray-600 space-y-2">
+                    <p><strong class="font-semibold">Amaç:</strong> Genel Sunucu Sağlığını Koruma.</p>
+                    <p>
+                        <strong>Açıklama:</strong> Bu, tüm API için geçerli olan en temel güvenlik katmanıdır. Herhangi bir IP adresinin, özel bir limiti olmasa bile, API'ye dakikada 200'den fazla istek göndermesini engeller. Bu, genel bir yavaşlatma saldırısına karşı ilk savunma hattımızdır.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Authentication Router -->
+            <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+                <h3 class="text-xl font-semibold text-red-700 mb-3">Authentication Router (`/auth`)</h3>
+                <div class="space-y-4">
+                    <!-- /token -->
+                    <div class="border-t pt-4">
+                        <div class="flex flex-col md:flex-row items-start md:items-center justify-between">
+                            <p class="font-mono text-gray-700">POST /token</p>
+                            <span class="mt-2 md:mt-0 inline-block bg-red-100 text-red-800 text-sm font-semibold mr-2 px-3 py-1 rounded-full">5 / 15 Dakika</span>
+                        </div>
+                        <div class="mt-2 text-gray-600 space-y-2">
+                            <p><strong class="font-semibold">Amaç:</strong> Brute-Force (Kaba Kuvvet) Saldırılarını Engelleme.</p>
+                            <p><strong>Açıklama:</strong> Bu, en kritik güvenlik limitimizdir. Bir saldırganın, bir kullanıcının şifresini art arda deneyerek bulmasını engeller. 15 dakika içinde sadece 5 kez yanlış şifre deneme hakkı tanır. Bu, normal bir kullanıcının şifresini yanlış yazmasını tolere ederken, otomatik saldırıları imkansız hale getirir.</p>
+                        </div>
+                    </div>
+                    <!-- /token/refresh -->
+                    <div class="border-t pt-4">
+                        <div class="flex flex-col md:flex-row items-start md:items-center justify-between">
+                            <p class="font-mono text-gray-700">POST /token/refresh</p>
+                            <span class="mt-2 md:mt-0 inline-block bg-orange-100 text-orange-800 text-sm font-semibold mr-2 px-3 py-1 rounded-full">10 / Dakika</span>
+                        </div>
+                        <div class="mt-2 text-gray-600 space-y-2">
+                            <p><strong class="font-semibold">Amaç:</strong> Refresh Token Mekanizmasının Kötüye Kullanımını Önleme.</p>
+                            <p><strong>Açıklama:</strong> Refresh token'lar uzun ömürlü olduğu için bu endpoint'in de korunması gerekir. Bu limit, çalınan bir refresh token ile sürekli yeni access token üretilmeye çalışılmasını yavaşlatır.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Projects Router -->
+            <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+                <h3 class="text-xl font-semibold text-blue-700 mb-3">Projects Router (`/projects`)</h3>
+                <div class="space-y-4">
+                    <!-- POST /projects -->
+                    <div class="border-t pt-4">
+                        <div class="flex flex-col md:flex-row items-start md:items-center justify-between">
+                            <p class="font-mono text-gray-700">POST /</p>
+                            <span class="mt-2 md:mt-0 inline-block bg-blue-100 text-blue-800 text-sm font-semibold mr-2 px-3 py-1 rounded-full">10 / Saat</span>
+                        </div>
+                        <div class="mt-2 text-gray-600 space-y-2">
+                            <p><strong class="font-semibold">Amaç:</strong> Proje Oluşturma Spam'ini Engelleme.</p>
+                            <p><strong>Açıklama:</strong> Bir firmanın (client) saatte 10'dan fazla proje ilanı girmesi normal bir kullanım senaryosu değildir. Bu limit, platformun anlamsız veya sahte projelerle doldurulmasını engeller.</p>
+                        </div>
+                    </div>
+                    <!-- GET /projects -->
+                    <div class="border-t pt-4">
+                        <div class="flex flex-col md:flex-row items-start md:items-center justify-between">
+                            <p class="font-mono text-gray-700">GET /</p>
+                            <span class="mt-2 md:mt-0 inline-block bg-indigo-100 text-indigo-800 text-sm font-semibold mr-2 px-3 py-1 rounded-full">60 / Dakika</span>
+                        </div>
+                        <div class="mt-2 text-gray-600 space-y-2">
+                            <p><strong class="font-semibold">Amaç:</strong> Veri Kazımayı (Scraping) Yavaşlatma.</p>
+                            <p><strong>Açıklama:</strong> Proje listeleme sayfası, platformdaki verilerin toplu olarak çekilebileceği bir yerdir. Bu limit, kötü niyetli botların tüm proje veritabanını kısa sürede kopyalamasını ve sunucuyu yormasını engeller.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Applications Router -->
+            <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+                <h3 class="text-xl font-semibold text-green-700 mb-3">Applications Router (`/applications`)</h3>
+                <div class="space-y-4">
+                     <!-- POST /applications -->
+                     <div class="border-t pt-4">
+                        <div class="flex flex-col md:flex-row items-start md:items-center justify-between">
+                            <p class="font-mono text-gray-700">POST /</p>
+                            <span class="mt-2 md:mt-0 inline-block bg-green-100 text-green-800 text-sm font-semibold mr-2 px-3 py-1 rounded-full">20 / Saat</span>
+                        </div>
+                        <div class="mt-2 text-gray-600 space-y-2">
+                            <p><strong class="font-semibold">Amaç:</strong> Proje Başvuru Spam'ini Engelleme.</p>
+                            <p><strong>Açıklama:</strong> Bir freelancer'ın saatte 20'den fazla projeye başvurması, genellikle nitelikli başvurular yapmadığını gösterir. Bu limit, hem proje sahiplerini anlamsız başvurulardan korur hem de başvuru sisteminin spam ile dolmasını engeller.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+             <!-- Reviews Router -->
+             <div class="bg-white p-6 rounded-lg shadow-md mb-8">
+                <h3 class="text-xl font-semibold text-purple-700 mb-3">Reviews Router (`/reviews`)</h3>
+                <div class="space-y-4">
+                     <!-- POST /reviews -->
+                     <div class="border-t pt-4">
+                        <div class="flex flex-col md:flex-row items-start md:items-center justify-between">
+                            <p class="font-mono text-gray-700">POST /</p>
+                            <span class="mt-2 md:mt-0 inline-block bg-purple-100 text-purple-800 text-sm font-semibold mr-2 px-3 py-1 rounded-full">5 / Saat</span>
+                        </div>
+                        <div class="mt-2 text-gray-600 space-y-2">
+                            <p><strong class="font-semibold">Amaç:</strong> "Review Bombing" (Yorum Bombardımanı) Engellemesi.</p>
+                            <p><strong>Açıklama:</strong> Platformun güvenilirliği için en önemli limitlerden biridir. Bir kullanıcının, başka bir kullanıcıya veya birden fazla kullanıcıya kısa sürede çok sayıda sahte/kötü niyetli yorum yapmasını engeller. Bu, platformdaki değerlendirme sisteminin adil ve güvenilir kalmasını sağlar.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+    </div>
+
+</body>
+</html>

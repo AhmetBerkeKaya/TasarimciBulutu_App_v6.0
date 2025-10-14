@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="tr" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tasarımcı Bulutu - İnteraktif Proje Özeti</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9fa; /* bg-slate-50 */
+            color: #1f2937; /* text-slate-800 */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 350px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+    <!-- 
+        Chosen Palette: Professional Engineering Blueprint
+        Application Structure Plan: A single-page, dashboard-style interactive overview of the "Tasarımcı Bulutu" concept. The structure flows from a high-level vision to specific user benefits, the platform's core differentiator (verified skills), and success metrics. This thematic, top-down approach is chosen over a linear report structure to allow stakeholders to quickly grasp the project's essence and explore sections of interest via a navigation bar, enhancing usability and engagement.
+        Visualization & Content Choices:
+        - Platform Overview: HTML/CSS diagram to visually explain the core user loop (Goal: Organize). Dynamic JS counters for target metrics to make goals feel alive (Goal: Inform).
+        - User Benefits: Side-by-side columns for clear comparison of value propositions for Freelancers vs. Firms (Goal: Compare).
+        - Skill Distribution: Chart.js horizontal bar chart to visualize the platform's talent pool depth across key software (Goal: Compare/Inform).
+        - Quality Metric: Chart.js donut chart to highlight the "ProAEC Certified" freelancer ratio, emphasizing the platform's quality focus (Goal: Inform).
+        - Success Metrics: HTML/CSS animated progress bars to show projected growth towards key targets, making abstract numbers tangible (Goal: Change).
+        - Risks/Solutions: Interactive HTML/JS accordion to present dense information in a digestible, user-initiated way (Goal: Organize).
+        - Library/Method Confirmation: All charts are rendered on Canvas using Chart.js. All diagrams and layouts use standard HTML and Tailwind CSS.
+        CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
+    -->
+
+    <!-- Header & Nav -->
+    <header class="bg-white shadow-md sticky top-0 z-50">
+        <nav class="container mx-auto px-6 py-3 flex justify-between items-center">
+            <div class="text-2xl font-bold text-indigo-900">Tasarımcı<span class="text-indigo-600">Bulutu</span></div>
+            <div class="hidden md:flex space-x-6">
+                <a href="#genel-bakis" class="text-slate-600 hover:text-indigo-600 transition">Genel Bakış</a>
+                <a href="#deger-onermesi" class="text-slate-600 hover:text-indigo-600 transition">Değer Önermesi</a>
+                <a href="#yetkinlikler" class="text-slate-600 hover:text-indigo-600 transition">Yetkinlikler</a>
+                <a href="#hedefler" class="text-slate-600 hover:text-indigo-600 transition">Hedefler</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-6 py-12">
+        <!-- Hero Section -->
+        <section class="text-center py-20">
+            <h1 class="text-5xl md:text-6xl font-extrabold text-indigo-900 mb-4">Tasarımcı Bulutu</h1>
+            <p class="text-xl md:text-2xl text-slate-600 max-w-3xl mx-auto">Türkiye'nin Yetkinlik Odaklı Tasarım ve Mühendislik Proje Platformu</p>
+        </section>
+
+        <!-- Platforma Genel Bakış -->
+        <section id="genel-bakis" class="py-16">
+            <h2 class="text-4xl font-bold text-center text-indigo-900 mb-12">Platforma Genel Bakış</h2>
+            <div class="grid md:grid-cols-2 gap-12 items-center">
+                <div class="space-y-6">
+                    <p class="text-lg text-slate-700">Tasarımcı Bulutu, Türkiye'deki nitelikli CAD ve BIM uzmanları ile bu yeteneklere proje bazlı ihtiyaç duyan firmaları bir araya getiren stratejik bir köprüdür. Platform, basit bir iş bulma sitesinin ötesinde, ProAEC güvencesiyle yetkinliklerin doğrulandığı, güvenilir bir ekosistem sunar.</p>
+                    <div class="grid grid-cols-2 gap-6 text-center">
+                        <div class="bg-white p-6 rounded-xl shadow">
+                            <span id="freelancer-count" class="text-4xl font-bold text-indigo-600">0</span>
+                            <p class="text-slate-500 mt-2">Hedef Aktif Freelancer</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow">
+                            <span id="firma-count" class="text-4xl font-bold text-indigo-600">0</span>
+                            <p class="text-slate-500 mt-2">Hedef Aktif Firma</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Core Loop Diagram -->
+                <div class="space-y-4">
+                    <div class="flex items-center p-4 bg-white rounded-lg shadow">
+                        <div class="bg-amber-100 text-amber-600 p-3 rounded-full">🏢</div>
+                        <p class="ml-4 font-semibold">1. Firma Projeyi Yayınlar</p>
+                    </div>
+                    <div class="flex justify-end"><span class="text-2xl text-indigo-300">↓</span></div>
+                    <div class="flex items-center p-4 bg-white rounded-lg shadow">
+                        <div class="bg-sky-100 text-sky-600 p-3 rounded-full">✍️</div>
+                        <p class="ml-4 font-semibold">2. Freelancer Yetkinliğini Kanıtlar ve Başvurur</p>
+                    </div>
+                    <div class="flex justify-end"><span class="text-2xl text-indigo-300">↓</span></div>
+                    <div class="flex items-center p-4 bg-white rounded-lg shadow">
+                        <div class="bg-indigo-100 text-indigo-600 p-3 rounded-full">🤝</div>
+                        <p class="ml-4 font-semibold">3. Eşleşme, İşbirliği ve Başarılı Teslimat</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Değer Önermesi -->
+        <section id="deger-onermesi" class="py-16 bg-white rounded-2xl shadow-lg">
+             <h2 class="text-4xl font-bold text-center text-indigo-900 mb-12">Ekosistemin Oyuncuları</h2>
+             <div class="grid md:grid-cols-2 gap-10 max-w-5xl mx-auto">
+                 <!-- Freelancer İçin -->
+                 <div class="bg-slate-50 p-8 rounded-xl border border-slate-200">
+                     <h3 class="text-2xl font-bold text-indigo-800 mb-4">Freelancer için Değer</h3>
+                     <ul class="space-y-3 list-inside">
+                         <li class="flex items-start"><span class="text-green-500 mr-2">✓</span> Güvenilir ve nitelikli projelere erişim.</li>
+                         <li class="flex items-start"><span class="text-green-500 mr-2">✓</span> Teknik yetkinliklerini "ProAEC Onaylı" rozeti ile kanıtlama fırsatı.</li>
+                         <li class="flex items-start"><span class="text-green-500 mr-2">✓</span> Sadece iş değil, kariyer ve gelişim odaklı bir topluluk.</li>
+                         <li class="flex items-start"><span class="text-green-500 mr-2">✓</span> Şeffaf değerlendirme sistemi ile itibarını yükseltme.</li>
+                     </ul>
+                 </div>
+                 <!-- Firma İçin -->
+                 <div class="bg-slate-50 p-8 rounded-xl border border-slate-200">
+                     <h3 class="text-2xl font-bold text-indigo-800 mb-4">Firma için Değer</h3>
+                     <ul class="space-y-3 list-inside">
+                         <li class="flex items-start"><span class="text-green-500 mr-2">✓</span> Doğru yetkinlikteki uzmana aracısız ve hızlı erişim.</li>
+                         <li class="flex items-start"><span class="text-green-500 mr-2">✓</span> ProAEC güvencesiyle yetkinliği doğrulanmış yetenek havuzu.</li>
+                         <li class="flex items-start"><span class="text-green-500 mr-2">✓</span> Proje bazlı çalışma ile esnek ve verimli iş gücü yönetimi.</li>
+                         <li class="flex items-start"><span class="text-green-500 mr-2">✓</span> Risklerin azaldığı, güvene dayalı bir işbirliği ortamı.</li>
+                     </ul>
+                 </div>
+             </div>
+        </section>
+
+        <!-- Yetkinlikler ve Güven -->
+        <section id="yetkinlikler" class="py-16">
+            <h2 class="text-4xl font-bold text-center text-indigo-900 mb-12">Yetkinlik ve Güven Odaklı Yaklaşım</h2>
+            <div class="grid lg:grid-cols-2 gap-12">
+                <div>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-4">Platformdaki Yetenek Havuzu</h3>
+                    <p class="mb-6 text-slate-600">Platform, Türkiye'nin en çok talep gören CAD/BIM yazılımlarına odaklanarak firmaların aradığı doğru uzmanı bulmasını sağlar.</p>
+                    <div class="chart-container bg-white p-4 rounded-xl shadow"><canvas id="skillsChart"></canvas></div>
+                </div>
+                <div>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-4">ProAEC Onaylı Yetkinlik</h3>
+                    <p class="mb-6 text-slate-600">Platformun en büyük farkı, freelancer'ların yetkinliklerini objektif testlerle kanıtlayabilmesidir. Bu, firmalar için bir kalite güvencesidir.</p>
+                    <div class="chart-container bg-white p-4 rounded-xl shadow"><canvas id="verificationChart"></canvas></div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Hedefler -->
+        <section id="hedefler" class="py-16 bg-white rounded-2xl shadow-lg">
+            <h2 class="text-4xl font-bold text-center text-indigo-900 mb-12">Başarı Kriterleri ve Hedefler</h2>
+            <div class="max-w-4xl mx-auto space-y-8">
+                <div>
+                    <p class="font-semibold mb-2">Tamamlanan Proje Sayısı</p>
+                    <div class="w-full bg-slate-200 rounded-full h-4">
+                        <div id="progress-projects" class="bg-indigo-600 h-4 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div>
+                    <p class="font-semibold mb-2">Kullanıcı Memnuniyeti</p>
+                    <div class="w-full bg-slate-200 rounded-full h-4">
+                        <div id="progress-satisfaction" class="bg-amber-500 h-4 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                    </div>
+                </div>
+                 <div>
+                    <p class="font-semibold mb-2">"ProAEC Onaylı" Freelancer Oranı</p>
+                    <div class="w-full bg-slate-200 rounded-full h-4">
+                        <div id="progress-certified" class="bg-sky-500 h-4 rounded-full transition-all duration-1000" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="bg-indigo-900 text-white mt-16">
+        <div class="container mx-auto px-6 py-4 text-center">
+            <p>&copy; 2025 Tasarımcı Bulutu - Bir ProAEC Girişimidir.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Smooth scrolling for nav links
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    document.querySelector(this.getAttribute('href')).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                });
+            });
+
+            // Animate counters
+            const animateCounter = (element, target) => {
+                let current = 0;
+                const increment = target / 100;
+                const interval = setInterval(() => {
+                    current += increment;
+                    if (current >= target) {
+                        current = target;
+                        clearInterval(interval);
+                    }
+                    element.textContent = Math.ceil(current).toLocaleString('tr-TR');
+                }, 20);
+            };
+
+            const observeElement = (id, callback, options = { threshold: 0.5 }) => {
+                const element = document.getElementById(id);
+                if (!element) return;
+                const observer = new IntersectionObserver((entries, observer) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            callback(element);
+                            observer.unobserve(element);
+                        }
+                    });
+                }, options);
+                observer.observe(element);
+            };
+
+            observeElement('freelancer-count', el => animateCounter(el, 5000));
+            observeElement('firma-count', el => animateCounter(el, 1200));
+            
+            observeElement('progress-projects', el => el.style.width = '70%');
+            observeElement('progress-satisfaction', el => el.style.width = '90%');
+            observeElement('progress-certified', el => el.style.width = '40%');
+
+            // Chart.js - Skills Chart
+            const skillsCtx = document.getElementById('skillsChart');
+            if(skillsCtx) {
+                new Chart(skillsCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Autodesk Inventor', 'SolidWorks', 'Autodesk Revit', 'AutoCAD', 'Fusion 360', 'Diğer'],
+                        datasets: [{
+                            label: 'Platformdaki Yetkinlik Dağılımı (Tahmini)',
+                            data: [25, 22, 18, 15, 12, 8],
+                            backgroundColor: 'rgba(79, 70, 229, 0.8)',
+                            borderColor: 'rgba(67, 56, 202, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return ` Oran: %${context.raw}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '%' + value;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Chart.js - Verification Chart
+            const verificationCtx = document.getElementById('verificationChart');
+            if (verificationCtx) {
+                new Chart(verificationCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['ProAEC Onaylı Uzmanlar', 'Standart Freelancerlar'],
+                        datasets: [{
+                            data: [35, 65],
+                            backgroundColor: [
+                                'rgba(59, 130, 246, 0.9)',
+                                'rgba(209, 213, 219, 0.9)',
+                            ],
+                            borderColor: [
+                                'rgba(37, 99, 235, 1)',
+                                'rgba(156, 163, 175, 1)',
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                           legend: {
+                                position: 'bottom',
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.label}: %${context.raw}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

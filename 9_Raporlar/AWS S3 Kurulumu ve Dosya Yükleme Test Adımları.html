@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS S3 Kurulumu ve Test Adımları</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .card { background-color: white; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); padding: 1.5rem; margin-bottom: 2rem; }
+        h2 { font-size: 1.875rem; font-weight: 700; margin-bottom: 1rem; color: #111827; border-bottom: 2px solid #F97316; padding-bottom: 0.5rem; }
+        h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.75rem; color: #1F2937; }
+        code { background-color: #F3F4F6; color: #E11D48; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-family: monospace; }
+        .warning { background-color: #FEF2F2; border-left: 4px solid #EF4444; padding: 1rem; color: #991B1B; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+    <div class="container mx-auto p-6 md:p-10">
+        
+        <header class="mb-10 text-center">
+            <h1 class="text-5xl font-bold text-gray-900">AWS S3 Kurulum Rehberi</h1>
+            <p class="mt-3 text-xl text-gray-600">TasarimciBulutu projesi için dosya depolama altyapısını sıfırdan kurma.</p>
+        </header>
+
+        <!-- Adım 1: AWS Hesabı Oluşturma -->
+        <div class="card">
+            <h2><span class="text-orange-500">Adım 1:</span> AWS Hesabı Oluşturma</h2>
+            <p class="mb-4 text-gray-600">Eğer mevcut bir AWS hesabın yoksa, ilk adım bir hesap oluşturmaktır. Bu işlem sırasında bir kredi kartı bilgisi girmen gerekecek, ancak 12 ay boyunca geçerli olan "Ücretsiz Kullanım Hakkı" (Free Tier) sayesinde bu adımlar için herhangi bir ücret ödemeyeceksin.</p>
+            <a href="https://portal.aws.amazon.com/billing/signup" target="_blank" class="inline-block bg-orange-500 text-white font-bold py-2 px-4 rounded hover:bg-orange-600 transition-colors">
+                AWS Ücretsiz Hesap Oluştur
+            </a>
+        </div>
+
+        <!-- Adım 2: Güvenlik Anahtarları Oluşturma (IAM Kullanıcısı) -->
+        <div class="card">
+            <h2><span class="text-orange-500">Adım 2:</span> Güvenlik Anahtarları Oluşturma (IAM)</h2>
+            <p class="mb-4 text-gray-600">Uygulamamızın S3'e güvenli bir şekilde erişebilmesi için, ona özel bir "kullanıcı" ve bu kullanıcının "anahtarlarını" oluşturacağız. <strong>Asla ana hesap (root) anahtarlarını kullanma!</strong></p>
+            <ol class="list-decimal list-inside space-y-4">
+                <li>AWS Konsolu'na giriş yap ve arama çubuğuna <strong>"IAM"</strong> yazarak IAM servisine git.</li>
+                <li>Sol menüden <strong>"Users"</strong> (Kullanıcılar) sekmesine tıkla.</li>
+                <li><strong>"Create user"</strong> (Kullanıcı oluştur) butonuna tıkla.</li>
+                <li><strong>User name:</strong> <code>tasarimcibulutu-api-user</code> gibi bir isim ver ve "Next" de.</li>
+                <li><strong>Permissions options:</strong> <strong>"Attach policies directly"</strong> (Politikaları doğrudan ekle) seçeneğini seç.</li>
+                <li>Arama kutusuna <code>AmazonS3FullAccess</code> yaz, çıkan politikanın yanındaki kutucuğu işaretle ve "Next" de.</li>
+                <li>Son ekranda bilgileri kontrol et ve <strong>"Create user"</strong> butonuna tıkla.</li>
+                <li>Kullanıcı oluşturulduktan sonra, listeden az önce oluşturduğun kullanıcıya (<code>tasarimcibulutu-api-user</code>) tıkla.</li>
+                <li>Açılan ekranda <strong>"Security credentials"</strong> (Güvenlik kimlik bilgileri) sekmesine git.</li>
+                <li>Aşağı kaydırarak <strong>"Access keys"</strong> (Erişim anahtarları) bölümünü bul ve <strong>"Create access key"</strong> butonuna tıkla.</li>
+                <li><strong>Use case:</strong> <strong>"Application running outside AWS"</strong> (AWS dışında çalışan uygulama) seçeneğini seç, onay kutusunu işaretle ve "Next" de.</li>
+                <li><strong>Description:</strong> İsteğe bağlı, "TasarimciBulutu Backend API Erişimi" yazabilirsin. "Create access key" butonuna tıkla.</li>
+                <li>
+                    <strong>BU EN ÖNEMLİ EKRAN!</strong> Sana bir <strong>Access key ID</strong> ve bir <strong>Secret access key</strong> verecek.
+                    <ul class="list-disc list-inside mt-2 ml-4 bg-gray-100 p-3 rounded">
+                        <li><code>Access key ID</code>'yi kopyala.</li>
+                        <li><code>Secret access key</code>'in yanındaki "Show" butonuna bas ve onu da kopyala.</li>
+                    </ul>
+                </li>
+            </ol>
+            <div class="warning mt-6">
+                <strong>ÇOK ÖNEMLİ:</strong> <code>Secret access key</code> bu ekrandan ayrıldıktan sonra bir daha <strong>gösterilmeyecektir!</strong> Bu iki anahtarı da güvenli bir yere (şimdilik doğrudan <code>.env</code> dosyana) kaydettiğinden emin ol.
+            </div>
+        </div>
+
+        <!-- Adım 3: Dosya Kovası Oluşturma (S3 Bucket) -->
+        <div class="card">
+            <h2><span class="text-orange-500">Adım 3:</span> Dosya Kovası Oluşturma (S3 Bucket)</h2>
+            <p class="mb-4 text-gray-600">Şimdi, kullanıcıların dosyalarını yükleyeceği bulut depolama alanını oluşturalım.</p>
+            <ol class="list-decimal list-inside space-y-4">
+                <li>AWS Konsolu arama çubuğuna <strong>"S3"</strong> yazarak S3 servisine git.</li>
+                <li><strong>"Create bucket"</strong> (Kova oluştur) butonuna tıkla.</li>
+                <li><strong>Bucket name:</strong> Tüm dünyada benzersiz bir isim girmelisin. Örneğin: <code>tasarimcibulutu-showcase-files-ahmet</code>. (<code>.env</code> dosyasındaki isimle aynı olmalı).</li>
+                <li><strong>AWS Region:</strong> Sana en yakın veya kullanıcılarına en yakın bölgeyi seç. Örneğin: <strong>Europe (Frankfurt) eu-central-1</strong>.</li>
+                <li><strong>Block Public Access settings for this bucket:</strong> <strong>"Block all public access"</strong> seçeneğinin işaretli olduğundan emin ol. Bu, en güvenli ayardır. Biz dosyaları "Presigned URL" ile yükleyeceğimiz için bucket'ın public olmasına gerek yok.</li>
+                <li>Diğer tüm ayarları varsayılan olarak bırak ve en alttaki <strong>"Create bucket"</strong> butonuna tıkla.</li>
+            </ol>
+        </div>
+
+        <!-- Adım 4: .env Dosyasını Doldurma -->
+        <div class="card">
+            <h2><span class="text-orange-500">Adım 4:</span> Projeyi Bilgilendirme (<code>.env</code> Dosyası)</h2>
+            <p class="mb-4 text-gray-600">Artık elimizdeki tüm bilgileri backend projemizdeki <code>.env</code> dosyasına girme zamanı.</p>
+            <pre class="bg-gray-800 text-white p-4 rounded-md overflow-x-auto"><code># .env dosyasındaki AWS S3 bölümü
+
+AWS_ACCESS_KEY_ID=<span class="text-yellow-400">Adım 2'de kopyaladığın Access Key ID</span>
+AWS_SECRET_ACCESS_KEY=<span class="text-yellow-400">Adım 2'de kopyaladığın Secret Access Key</span>
+AWS_S3_BUCKET_NAME=<span class="text-yellow-400">Adım 3'te oluşturduğun bucket adı</span>
+AWS_REGION=<span class="text-yellow-400">Adım 3'te seçtiğin bölge kodu (örn: eu-central-1)</span>
+</code></pre>
+        </div>
+
+        <!-- Adım 5: Detaylı Test Senaryosu -->
+        <div class="card border-l-4 border-green-500">
+            <h2 class="text-green-700">Adım 5: Detaylı Test Senaryosu (Sıfırdan)</h2>
+            <p class="mb-4 text-gray-600">Tüm altyapı hazır olduğuna göre, şimdi özelliği baştan sona test edebiliriz.</p>
+            <ol class="list-decimal list-inside space-y-4">
+                <li><strong>Hazırlık:</strong>
+                    <ul class="list-disc list-inside ml-4">
+                        <li><code>.env</code> dosyasını yukarıdaki gibi doldurduğundan ve kaydettiğinden emin ol.</li>
+                        <li>Terminalde <code>uvicorn app.main:app --reload</code> komutuyla backend'i başlat.</li>
+                        <li><code>flutter run</code> ile Flutter uygulamasını başlat.</li>
+                    </ul>
+                </li>
+                <li><strong>Uygulama Üzerinden Test:</strong>
+                    <ul class="list-disc list-inside ml-4">
+                        <li>"Proje Vitrini" ekranına git ve sağ alttaki <strong>(+)</strong> butonuna tıkla.</li>
+                        <li>"Dosya Seç" butonuna tıkla ve bir resim seç.</li>
+                        <li>Seçtiğin resmin önizlemesinin ekranda göründüğünü onayla.</li>
+                        <li>Bir "Başlık" gir ve sağ üstteki <strong>"YAYINLA"</strong> butonuna tıkla.</li>
+                    </ul>
+                </li>
+                <li><strong>Doğrulama:</strong>
+                    <ul class="list-disc list-inside ml-4">
+                        <li>Uygulamanın seni vitrin akışına geri yönlendirdiğini ve yeşil başarı mesajını gösterdiğini gör.</li>
+                        <li>Backend terminalinde <code>200 OK (upload-url)</code> ve <code>201 Created (posts)</code> loglarını gör.</li>
+                        <li><strong>Nihai Kanıt:</strong> AWS S3 konsolunda, oluşturduğun bucket'ın içinde <code>users/{kullanici-id}/posts/</code> klasörü altında resminin yüklendiğini onayla.</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+    </div>
+</body>
+</html>

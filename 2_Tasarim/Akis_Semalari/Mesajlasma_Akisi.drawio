@@ -1,0 +1,67 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36" version="27.1.6">
+  <diagram name="Sayfa -1" id="7wUzRQAPPI1P0Sh_GCbB">
+    <mxGraphModel dx="1426" dy="743" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="EOykIKiZSsNFY2BYJX_O-3" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="EOykIKiZSsNFY2BYJX_O-1" target="EOykIKiZSsNFY2BYJX_O-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EOykIKiZSsNFY2BYJX_O-1" value="Başla" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="350" y="340" width="120" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="EOykIKiZSsNFY2BYJX_O-5" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="EOykIKiZSsNFY2BYJX_O-2" target="EOykIKiZSsNFY2BYJX_O-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EOykIKiZSsNFY2BYJX_O-2" value="&lt;div&gt;Dashboard’a Giriş&lt;/div&gt;" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="350" y="440" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="EOykIKiZSsNFY2BYJX_O-7" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="EOykIKiZSsNFY2BYJX_O-4" target="EOykIKiZSsNFY2BYJX_O-6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EOykIKiZSsNFY2BYJX_O-4" value="&quot;Mesajlar&quot; Sekmesine Git" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="350" y="520" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="EOykIKiZSsNFY2BYJX_O-9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="EOykIKiZSsNFY2BYJX_O-6" target="EOykIKiZSsNFY2BYJX_O-8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EOykIKiZSsNFY2BYJX_O-6" value="Gelen Kutusu Listesini Görüntüle" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="350" y="600" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="EOykIKiZSsNFY2BYJX_O-11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="EOykIKiZSsNFY2BYJX_O-8" target="EOykIKiZSsNFY2BYJX_O-10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EOykIKiZSsNFY2BYJX_O-8" value="Yeni Mesaj&amp;nbsp;&lt;div&gt;Göndermek İçin Kullanıcı Seç veya Gelen Mesaja&amp;nbsp;&lt;/div&gt;&lt;div&gt;Yanıt Ver&lt;/div&gt;" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;" vertex="1" parent="1">
+          <mxGeometry x="345" y="700" width="130" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="EOykIKiZSsNFY2BYJX_O-13" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="EOykIKiZSsNFY2BYJX_O-10" target="EOykIKiZSsNFY2BYJX_O-12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EOykIKiZSsNFY2BYJX_O-10" value="Mesaj Yaz ve&lt;div&gt;&amp;nbsp;&quot;Gönder&quot;&amp;nbsp;&lt;/div&gt;&lt;div&gt;Butonuna Tıkla&lt;/div&gt;" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;" vertex="1" parent="1">
+          <mxGeometry x="490" y="707.5" width="130" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="EOykIKiZSsNFY2BYJX_O-15" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="EOykIKiZSsNFY2BYJX_O-12" target="EOykIKiZSsNFY2BYJX_O-14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EOykIKiZSsNFY2BYJX_O-12" value="Sistem Mesajı Veri Tabanına Kaydeder" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="495" y="820" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="EOykIKiZSsNFY2BYJX_O-17" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="EOykIKiZSsNFY2BYJX_O-14" target="EOykIKiZSsNFY2BYJX_O-16">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EOykIKiZSsNFY2BYJX_O-14" value="Karşı Tarafa Bildirim veya E-posta Gönderilir" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="350" y="820" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="EOykIKiZSsNFY2BYJX_O-19" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="EOykIKiZSsNFY2BYJX_O-16" target="EOykIKiZSsNFY2BYJX_O-18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="EOykIKiZSsNFY2BYJX_O-16" value="Kullanıcı Gelen Kutusundan Mesajları Takip Eder" style="whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="350" y="910" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="EOykIKiZSsNFY2BYJX_O-18" value="Bitir" style="ellipse;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="355" y="1010" width="110" height="80" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

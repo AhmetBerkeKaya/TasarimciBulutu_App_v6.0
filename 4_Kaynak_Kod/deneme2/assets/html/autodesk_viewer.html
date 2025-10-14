@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Tasarımcı Bulutu Viewer</title>
+    <!-- APS Viewer CSS -->
+    <link rel="stylesheet" href="https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/style.min.css" type="text/css">
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; }
+        #apsViewer { width: 100%; height: 100%; position: relative; background-color: #F0F0F0; } /* Arka plan rengini açık gri yaptık */
+    </style>
+</head>
+<body>
+<div id="apsViewer"></div>
+
+<!-- APS Viewer JavaScript -->
+<script src="https://developer.api.autodesk.com/modelderivative/v2/viewers/7.*/viewer3D.min.js"></script>
+
+<script>
+    let viewer;
+    let apsToken;
+
+    function setToken(token) {
+        apsToken = token;
+    }
+
+    function loadModel(urn) {
+        if (!urn || !apsToken) {
+            console.error("URN veya Access Token sağlanmadı!");
+            return;
+        }
+
+        const options = {
+            env: 'AutodeskProduction',
+            getAccessToken: (onGetAccessToken) => {
+                const expiration = 3500; // Yaklaşık 1 saat
+                onGetAccessToken(apsToken, expiration);
+            }
+        };
+
+        const documentId = 'urn:' + urn;
+
+        Autodesk.Viewing.Initializer(options, () => {
+            const viewerDiv = document.getElementById('apsViewer');
+
+            // ================== ANA DEĞİŞİKLİK BURADA ==================
+            // GuiViewer3D, tüm UI elemanlarını (toolbar, viewcube vb.) içerir.
+            const config = {
+                extensions: [
+                    'Autodesk.DocumentBrowser',
+                    'Autodesk.DefaultTools.NavTools', // Zoom, Pan, Orbit
+                    'Autodesk.ViewCubeUi',            // Sağ üstteki navigasyon küpü
+                    'Autodesk.LayerManager',
+                    'Autodesk.Measure',               // Ölçüm aracı
+                    'Autodesk.Section'                // Kesit alma aracı
+                ]
+            };
+            viewer = new Autodesk.Viewing.GuiViewer3D(viewerDiv, config);
+            // ==========================================================
+
+            viewer.start();
+            Autodesk.Viewing.Document.load(documentId, onDocumentLoadSuccess, onDocumentLoadFailure);
+        });
+    }
+
+    function onDocumentLoadSuccess(doc) {
+        const viewables = doc.getRoot().getDefaultGeometry();
+        viewer.loadDocumentNode(doc, viewables).then(i => {
+            console.log('Model başarıyla yüklendi.');
+            // Daha iyi bir görüntü için kamera ayarları ve açık tema
+            viewer.setTheme('light-theme');
+            viewer.setLightPreset(8); // Endüstriyel aydınlatma
+            viewer.setQualityLevel(true, true); // Kenar yumuşatma (antialiasing)
+            viewer.fitToView(); // Modeli ekrana sığdır
+        });
+    }
+
+    function onDocumentLoadFailure(viewerErrorCode, viewerErrorMsg) {
+        console.error('Model yüklenirken hata oluştu - Kod: ' + viewerErrorCode + ' - Mesaj: ' + viewerErrorMsg);
+        if (window.flutter_inappwebview) {
+            window.flutter_inappwebview.callHandler('onModelLoadError', { code: viewerErrorCode, msg: viewerErrorMsg });
+        }
+    }
+</script>
+</body>
+</html>
