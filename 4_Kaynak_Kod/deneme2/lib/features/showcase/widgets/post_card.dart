@@ -3,10 +3,12 @@ import 'package:deneme2/features/showcase/screens/image_viewer_screen.dart';
 import 'package:deneme2/features/showcase/screens/three_d_viewer_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/showcase_provider.dart';
+import '../screens/showcase_detail_screen.dart';
 import 'comment_bottom_sheet.dart';
 
 class PostCard extends StatelessWidget {
@@ -118,24 +120,12 @@ class PostCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
       child: InkWell(
         onTap: () {
-          if (post.processingStatus == ProcessingStatus.COMPLETED) {
-            // ================== SON DÜZELTME BURADA ==================
-            // 3D Görüntüleyiciye artık `modelUrn`'yi gönderiyoruz.
-            if (post.modelUrn != null && post.modelUrn!.isNotEmpty) {
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => ThreeDViewerScreen(
-                    modelUrn: post.modelUrn!,
-                    title: post.title
-                ),
-              ));
-            }
-            // ==========================================================
-            else if (post.thumbnailUrl != null && post.thumbnailUrl!.isNotEmpty) {
-              // Resim görüntüleyiciye tıklama
-              Navigator.of(context).push(MaterialPageRoute(builder: (_) => ImageViewerScreen(imageUrl: correctedThumbnailUrl, heroTag: post.id)));
-            }
-          }
+          // Kartın tamamına tıklandığında detay ekranına git
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (context) => ShowcaseDetailScreen(post: post),
+          ));
         },
+
         child: Padding(
           padding: const EdgeInsets.all(12.0),
           child: Column(
@@ -168,7 +158,7 @@ class PostCard extends StatelessWidget {
               ],
               const SizedBox(height: 12),
 
-              _buildContentArea(context, correctedThumbnailUrl),
+              buildContentArea(context, correctedThumbnailUrl),
 
               const SizedBox(height: 8),
               Row(
@@ -182,7 +172,7 @@ class PostCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildActionButton(
+                  buildActionButton(
                     context: context,
                     icon: isLikedByMe ? Icons.thumb_up_alt_rounded : Icons.thumb_up_alt_outlined,
                     label: 'Beğen',
@@ -193,7 +183,7 @@ class PostCard extends StatelessWidget {
                       }
                     },
                   ),
-                  _buildActionButton(
+                  buildActionButton(
                       context: context,
                       icon: Icons.comment_outlined,
                       label: 'Yorum Yap',
@@ -205,12 +195,16 @@ class PostCard extends StatelessWidget {
                           builder: (ctx) => CommentBottomSheet(post: post),
                         );
                       }),
-                  _buildActionButton(
+                  buildActionButton(
                       context: context,
                       icon: Icons.share_outlined,
                       label: 'Paylaş',
                       onTap: () {
-                        // TODO: Paylaşma işlevselliği eklenecek
+                        final postUrl = "https://tasarimcibulutu.com/showcase/${post.id}";
+                        Share.share(
+                          'Tasarımcı Bulutu\'ndaki bu harika projeye göz atın: ${post.title}\n\n$postUrl',
+                          subject: post.title,
+                        );
                       }),
                 ],
               ),
@@ -221,7 +215,8 @@ class PostCard extends StatelessWidget {
     );
   }
 
-  Widget _buildContentArea(BuildContext context, String imageUrl) {
+  // Fonksiyon public yapıldı (alt çizgi kaldırıldı).
+  Widget buildContentArea(BuildContext context, String imageUrl) {
     switch (post.processingStatus) {
       case ProcessingStatus.PROCESSING:
       case ProcessingStatus.PENDING:
@@ -301,26 +296,41 @@ class PostCard extends StatelessWidget {
                   ),
                 ),
               ),
-              // ================== SON DÜZELTME BURADA ==================
-              // `modelUrn`'yi kontrol ediyoruz.
               if (post.modelUrn != null && post.modelUrn!.isNotEmpty)
-              // ==========================================================
+              // Positioned.fill yerine sadece Positioned kullanıyoruz.
+              // Bu, tıklama alanını sadece butonun kendisiyle sınırlar.
                 Positioned(
-                  top: 10,
-                  right: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
+                  // Butonu tam ortalamak için Stack'in alignment'ını kullanıyoruz.
+                  child: Material(
+                    color: Colors.transparent,
+                    // InkWell'in ripple efektinin buton şeklinde görünmesi için
+                    borderRadius: BorderRadius.circular(20),
+                    child: InkWell(
+                      // Bu onTap artık SADECE bu butona aittir
+                      onTap: () {
+                        Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => ThreeDViewerScreen(
+                            modelUrn: post.modelUrn!,
+                            title: post.title,
+                          ),
+                        ));
+                      },
                       borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.view_in_ar, color: Colors.white, size: 16),
-                        SizedBox(width: 4),
-                        Text('3D GÖRÜNÜM', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                      ],
+                      child: Container( // Bu, butonun görünen kısmıdır
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.view_in_ar, color: Colors.white, size: 18),
+                            SizedBox(width: 6),
+                            Text('3D GÖRÜNTÜLE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -331,7 +341,7 @@ class PostCard extends StatelessWidget {
     }
   }
 
-  Widget _buildActionButton({
+  Widget buildActionButton({
     required BuildContext context,
     required IconData icon,
     required String label,

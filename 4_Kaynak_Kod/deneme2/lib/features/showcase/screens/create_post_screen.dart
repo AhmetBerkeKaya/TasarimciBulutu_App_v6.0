@@ -25,9 +25,126 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final List<String> _tags = [];
 
   // Makine öğrenmesi için örnek veriler. Bunlar gelecekte API'den gelmeli.
-  final List<String> _categories = ['Makine Tasarımı', 'Mimari Görselleştirme', 'BIM Modelleme', 'Endüstriyel Ürün Tasarımı', 'Kalıpçılık'];
-  final List<String> _software = ['AutoCAD', 'Revit', 'SolidWorks', 'Fusion 360', 'Inventor', 'Blender', '3ds Max'];
+  final List<String> _categories = ['Makine Tasarımı', 'Mimari Görselleştirme', 'BIM Modelleme', 'Endüstriyel Ürün Tasarımı', 'Kalıpçılık', 'Konsept Sanatı', 'Oyun Varlıkları', 'Ürün Simülasyonu'];
+  final List<String> _software = ['AutoCAD', 'Revit', 'SolidWorks', 'Fusion 360', 'Inventor', 'Blender', '3ds Max', 'CATIA', 'Creo', 'NX', 'SketchUp', 'Rhino'];
 
+  Future<T?> _showSelectionSheet<T>({
+    required BuildContext context,
+    required String title,
+    required List<String> items,
+    required bool isMultiSelect,
+    required List<String> currentlySelected,
+  }) async {
+    return await showModalBottomSheet<T>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        // Arama ve geçici seçimleri yönetmek için StatefulBuilder kullanıyoruz.
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            String searchQuery = '';
+            final List<String> tempSelected = List.from(currentlySelected);
+            final filteredItems = items.where((item) => item.toLowerCase().contains(searchQuery.toLowerCase())).toList();
+
+            return DraggableScrollableSheet(
+              initialChildSize: 0.6,
+              minChildSize: 0.4,
+              maxChildSize: 0.9,
+              builder: (_, scrollController) {
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  child: Column(
+                    children: [
+                      // Header (Başlık ve Kapatma Butonu)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                            IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.close)),
+                          ],
+                        ),
+                      ),
+                      // Arama Çubuğu
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                        child: TextField(
+                          onChanged: (value) => setState(() => searchQuery = value),
+                          decoration: InputDecoration(
+                            hintText: 'Ara...',
+                            prefixIcon: const Icon(Icons.search),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                        ),
+                      ),
+                      // Liste
+                      Expanded(
+                        child: filteredItems.isEmpty
+                            ? const Center(child: Text('Sonuç bulunamadı.'))
+                            : ListView.builder(
+                          controller: scrollController,
+                          itemCount: filteredItems.length,
+                          itemBuilder: (context, index) {
+                            final item = filteredItems[index];
+                            final isSelected = tempSelected.contains(item);
+                            return ListTile(
+                              title: Text(item),
+                              onTap: () {
+                                setState(() {
+                                  if (isMultiSelect) {
+                                    if (isSelected) {
+                                      tempSelected.remove(item);
+                                    } else {
+                                      tempSelected.add(item);
+                                    }
+                                  } else {
+                                    tempSelected.clear();
+                                    tempSelected.add(item);
+                                    // Tekli seçimde seçtikten hemen sonra kapat
+                                    Navigator.of(context).pop(item as T);
+                                  }
+                                });
+                              },
+                              trailing: isMultiSelect
+                                  ? Checkbox(value: isSelected, onChanged: (bool? value) {
+                                setState(() {
+                                  if (value == true) {
+                                    tempSelected.add(item);
+                                  } else {
+                                    tempSelected.remove(item);
+                                  }
+                                });
+                              })
+                                  : (isSelected ? Icon(Icons.check, color: Theme.of(context).primaryColor) : null),
+                            );
+                          },
+                        ),
+                      ),
+                      // Onay Butonu (Sadece çoklu seçim için)
+                      if (isMultiSelect)
+                        Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
+                            onPressed: () => Navigator.of(context).pop(tempSelected as T),
+                            child: const Text('Tamam'),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
   Future<void> _pickFile() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.any);
@@ -141,11 +258,43 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     const SizedBox(height: 32),
 
                     _buildStepHeader(3, 'Projenizi Kategorize Edin', 'Doğru kitleye ulaşmak için projenizi tanımlayın.', theme),
-                    _buildCategorySelector(theme),
+                    _buildSelectionButton(
+                      context: context,
+                      title: 'Proje Kategorisi*',
+                      selectedValue: _selectedCategory,
+                      placeholder: 'Bir kategori seçin',
+                      onTap: () async {
+                        final result = await _showSelectionSheet<String>(
+                          context: context,
+                          title: 'Kategori Seç',
+                          items: _categories,
+                          isMultiSelect: false,
+                          currentlySelected: _selectedCategory != null ? [_selectedCategory!] : [],
+                        );
+                        if (result != null) {
+                          setState(() => _selectedCategory = result);
+                        }
+                      },
+                    ),
                     const SizedBox(height: 24),
-                    Text('Kullanılan Yazılımlar (Opsiyonel)', style: theme.textTheme.titleMedium),
-                    const SizedBox(height: 8),
-                    _buildSoftwareSelector(theme),
+                    _buildSelectionButton(
+                      context: context,
+                      title: 'Kullanılan Yazılımlar (Opsiyonel)',
+                      selectedValues: _selectedSoftware,
+                      placeholder: 'Kullandığınız yazılımları seçin',
+                      onTap: () async {
+                        final result = await _showSelectionSheet<List<String>>(
+                          context: context,
+                          title: 'Yazılım Seç',
+                          items: _software,
+                          isMultiSelect: true,
+                          currentlySelected: _selectedSoftware,
+                        );
+                        if (result != null) {
+                          setState(() => _selectedSoftware.replaceRange(0, _selectedSoftware.length, result));
+                        }
+                      },
+                    ),
                     const SizedBox(height: 24),
                     Text('Etiketler (Opsiyonel)', style: theme.textTheme.titleMedium),
                     const SizedBox(height: 8),
@@ -301,26 +450,58 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       ],
     );
   }
+  Widget _buildSelectionButton({
+    required BuildContext context,
+    required String title,
+    String? selectedValue,
+    List<String>? selectedValues,
+    required String placeholder,
+    required VoidCallback onTap,
+  }) {
+    final theme = Theme.of(context);
+    final hasValue = (selectedValue != null && selectedValue.isNotEmpty) || (selectedValues != null && selectedValues.isNotEmpty);
 
-  Widget _buildSoftwareSelector(ThemeData theme) {
-    return Wrap(
-      spacing: 8.0,
-      runSpacing: 4.0,
-      children: _software.map((software) {
-        return FilterChip(
-          label: Text(software),
-          selected: _selectedSoftware.contains(software),
-          onSelected: (selected) {
-            setState(() {
-              if (selected) {
-                _selectedSoftware.add(software);
-              } else {
-                _selectedSoftware.remove(software);
-              }
-            });
-          },
-        );
-      }).toList(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: theme.textTheme.titleMedium),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade400),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!hasValue)
+                  Text(placeholder, style: TextStyle(color: Colors.grey.shade600)),
+                if (selectedValue != null)
+                  Chip(
+                    label: Text(selectedValue, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    backgroundColor: theme.primaryColor.withOpacity(0.1),
+                  ),
+                if (selectedValues != null && selectedValues.isNotEmpty)
+                  Wrap(
+                    spacing: 8.0,
+                    runSpacing: 4.0,
+                    children: selectedValues.map((item) => Chip(
+                      label: Text(item),
+                      onDeleted: () {
+                        setState(() => selectedValues.remove(item));
+                      },
+                    )).toList(),
+                  )
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 

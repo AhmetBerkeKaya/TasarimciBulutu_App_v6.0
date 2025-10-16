@@ -78,6 +78,19 @@ class NotificationTile extends StatelessWidget {
         }
         break;
 
+      case NotificationType.postLiked:
+      case NotificationType.postCommented:
+      case NotificationType.commentLiked:
+      case NotificationType.commentReplied:
+        if (notification.relatedEntityId != null) {
+          // TODO: ProjectDetailLoaderScreen gibi bir ShowcasePostLoaderScreen oluşturup
+          // post'u ID ile çekip sonra ShowcaseDetailScreen'e yönlendirmek en doğrusu olacaktır.
+          // Şimdilik geçici bir mesaj gösteriyoruz.
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Yönlendirme tamamlanıyor...')),
+          );
+        }
+        break;
       case NotificationType.applicationAccepted:
       case NotificationType.applicationRejected:
       case NotificationType.applicationSubmitted:
