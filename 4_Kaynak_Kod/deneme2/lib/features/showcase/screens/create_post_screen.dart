@@ -18,7 +18,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _tagsController = TextEditingController();
-
+  bool _isRevitFileSelected = false;
   File? _selectedFile;
   String? _selectedCategory;
   final List<String> _selectedSoftware = [];
@@ -32,14 +32,21 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.any);
       if (result != null && result.files.single.path != null) {
-        // .obj dosyalarını kabul ediyoruz, bu listeyi genişletebilirsin.
-        const allowedExtensions = ['obj'];
+        const allowedExtensions = [
+          'obj', 'stl', 'step', 'stp', 'iges', 'igs', 'fbx', 'x_t', 'x_b',
+          'gltf', 'glb', '3ds', 'x3d', 'sldprt', 'sldasm', 'ipt', 'iam', 'rvt',
+          'catpart', 'catproduct', 'cgr', 'prt', 'asm'
+        ];
         final fileExtension = result.files.single.extension?.toLowerCase();
 
         if (fileExtension != null && allowedExtensions.contains(fileExtension)) {
-          setState(() => _selectedFile = File(result.files.single.path!));
+          setState(() {
+            _selectedFile = File(result.files.single.path!);
+            // YENİ: Seçilen dosyanın Revit olup olmadığını kontrol et
+            _isRevitFileSelected = (fileExtension == 'rvt');
+          });
         } else {
-          _showSnackBar('Şu an için sadece .obj dosyaları desteklenmektedir.', isSuccess: false);
+          _showSnackBar('Desteklenmeyen dosya formatı. Lütfen desteklenen bir 3D model dosyası seçin.', isSuccess: false);
         }
       }
     } catch (e) {
@@ -180,43 +187,96 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 
   Widget _buildFilePicker() {
-    if (_selectedFile != null) {
-      return Card(
-        color: Theme.of(context).primaryColor.withOpacity(0.05),
-        child: ListTile(
-          leading: const Icon(Icons.check_circle, color: Colors.green, size: 32),
-          title: Text(path.basename(_selectedFile!.path), style: const TextStyle(fontWeight: FontWeight.bold)),
-          subtitle: Text('${(_selectedFile!.lengthSync() / 1024 / 1024).toStringAsFixed(2)} MB'),
-          trailing: IconButton(
-            icon: const Icon(Icons.close, color: Colors.red),
-            onPressed: () => setState(() => _selectedFile = null),
-          ),
-        ),
-      );
-    } else {
-      return InkWell(
-        onTap: _pickFile,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          height: 120,
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            border: Border.all(color: Theme.of(context).dividerColor, style: BorderStyle.solid, width: 2),
+    // ========================================================================
+    // ===       DEĞİŞİKLİK: Dinamik uyarıyı göstermek için güncellendi       ===
+    // ========================================================================
+    return Column(
+      children: [
+        if (_selectedFile != null)
+          Card(
+            color: Theme.of(context).primaryColor.withOpacity(0.05),
+            child: ListTile(
+              leading: const Icon(Icons.check_circle, color: Colors.green, size: 32),
+              title: Text(path.basename(_selectedFile!.path), style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text('${(_selectedFile!.lengthSync() / 1024 / 1024).toStringAsFixed(2)} MB'),
+              trailing: IconButton(
+                icon: const Icon(Icons.close, color: Colors.red),
+                // YENİ: Dosya kaldırıldığında Revit bayrağını da sıfırla
+                onPressed: () => setState(() {
+                  _selectedFile = null;
+                  _isRevitFileSelected = false;
+                }),
+              ),
+            ),
+          )
+        else
+          InkWell(
+            onTap: _pickFile,
             borderRadius: BorderRadius.circular(12),
+            child: Container(
+              height: 120,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                border: Border.all(color: Theme.of(context).dividerColor, style: BorderStyle.solid, width: 2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.upload_file_rounded, size: 40, color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(height: 8),
+                  const Text('Dosya Seçmek için Tıklayın'),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    child: Text(
+                      'Tüm yaygın CAD formatları desteklenmektedir.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.upload_file_rounded, size: 40, color: Theme.of(context).colorScheme.primary),
-              const SizedBox(height: 8),
-              const Text('Dosya Seçmek için Tıklayın'),
-              Text('.obj formatı desteklenmektedir', style: Theme.of(context).textTheme.bodySmall),
-            ],
+
+        // --- YENİ ANİMASYONLU UYARI WIDGET'I ---
+        AnimatedOpacity(
+          opacity: _isRevitFileSelected ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 300),
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+            child: _isRevitFileSelected
+                ? Container(
+              margin: const EdgeInsets.only(top: 12.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.orange[800], size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Not: En iyi sonuçlar için Revit (.rvt) dosyalarının 2015 veya daha yeni bir sürümde kaydedilmiş olması önerilir.',
+                      style: TextStyle(
+                        color: Colors.orange[900],
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+                : const SizedBox.shrink(),
           ),
         ),
-      );
-    }
+      ],
+    );
   }
 
   Widget _buildCategorySelector(ThemeData theme) {

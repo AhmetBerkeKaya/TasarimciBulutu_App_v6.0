@@ -33,9 +33,6 @@ class ShowcaseProvider with ChangeNotifier {
     }
   }
 
-  // ========================================================================
-  // ===                 İŞTE ANA DEĞİŞİKLİK BURADA                       ===
-  // ========================================================================
   Future<bool> createPost({
     required String title,
     String? description,
@@ -46,25 +43,32 @@ class ShowcaseProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // --- YENİ ADIM: Dosyayı ZIP olarak paketle ---
       File zipFile;
-      // Sadece .obj dosyalarını ZIP'liyoruz. Diğerlerini (resim vb.) doğrudan yollayabiliriz.
-      if (path.extension(fileToUpload.path).toLowerCase() == '.obj') {
-        print("🔍 Adım 0: OBJ dosyası algılandı, ZIP'e paketleniyor...");
-        zipFile = await _createZipFromObj(fileToUpload);
+
+      // Desteklediğimiz tüm 3D model formatlarının listesi
+      const supported3DModelExtensions = [
+        '.obj', '.stl', '.step', '.stp', '.iges', '.igs', '.fbx', '.x_t', '.x_b',
+        '.gltf', '.glb', '.3ds', '.x3d', '.sldprt', '.sldasm', '.ipt', '.iam',
+        '.rvt', '.catpart', '.catproduct', '.cgr', '.prt', '.asm'
+      ];
+
+      final fileExtension = path.extension(fileToUpload.path).toLowerCase();
+
+      // Eğer seçilen dosya, desteklediğimiz 3D formatlardan biriyse, ZIP'le
+      if (supported3DModelExtensions.contains(fileExtension)) {
+        print("🔍 Adım 0: Desteklenen 3D model algılandı ($fileExtension), ZIP'e paketleniyor...");
+        zipFile = await _createZipFromFile(fileToUpload, 'model$fileExtension');
         print("✅ Adım 0 Başarılı: ZIP dosyası oluşturuldu -> ${zipFile.path}");
       } else {
-        // Eğer dosya .obj değilse, olduğu gibi kullan. (Gelecekteki resim yüklemeleri için)
+        // Eğer dosya bir resim veya başka bir türse, olduğu gibi kullan.
+        // Bu, gelecekte farklı dosya türleri eklememizi sağlar.
         zipFile = fileToUpload;
       }
-      // --- YENİ ADIM SONU ---
 
-      // 1. Adım: Backend'e gönderi oluşturma sürecini başlatma isteği gönder
       print("🔍 Adım 1: Gönderi oluşturma süreci başlatılıyor...");
       final initResponse = await _apiService.initializePostUpload(
         title: title,
         description: description,
-        // Backend'e dosya adını .zip uzantılı olarak gönderiyoruz
         originalFilename: path.basename(zipFile.path),
       );
 
@@ -73,7 +77,6 @@ class ShowcaseProvider with ChangeNotifier {
       }
       print("✅ Adım 1 Başarılı: Yükleme linki alındı. Post ID: ${initResponse.postId}");
 
-      // 2. Adım: Backend'den gelen linki kullanarak ZIP dosyasını S3'e yükle
       print("🔍 Adım 2: ZIP dosyası S3'e yükleniyor...");
       final uploadSuccess = await _apiService.uploadFileToS3(
         presignedData: initResponse.uploadData,
@@ -85,9 +88,7 @@ class ShowcaseProvider with ChangeNotifier {
       }
       print("✅ Adım 2 Başarılı: Dosya S3'e yüklendi. Backend şimdi işlemeye başlayacak.");
 
-      // 3. Adım (UI Güncelleme): Yeni gönderiyi anında göstermek için listeyi yenile
       await fetchPosts();
-
       return true;
 
     } catch (e) {
@@ -100,34 +101,22 @@ class ShowcaseProvider with ChangeNotifier {
     }
   }
 
-  // --- YENİ YARDIMCI FONKSİYON: OBJ dosyasından ZIP oluşturur ---
-  Future<File> _createZipFromObj(File objFile) async {
-    final objBytes = await objFile.readAsBytes();
+  // Fonksiyonu daha genel hale getiriyoruz.
+  Future<File> _createZipFromFile(File sourceFile, String fileNameInZip) async {
+    final bytes = await sourceFile.readAsBytes();
     final archive = Archive();
-
-    // Arşivin içine her zaman "model.obj" adıyla ekliyoruz
-    final archiveFile = ArchiveFile('model.obj', objBytes.length, objBytes);
+    final archiveFile = ArchiveFile(fileNameInZip, bytes.length, bytes);
     archive.addFile(archiveFile);
-
     final zipEncoder = ZipEncoder();
     final zipData = zipEncoder.encode(archive);
+    if (zipData == null) throw Exception('ZIP verisi oluşturulamadı.');
 
-    if (zipData == null) {
-      throw Exception('ZIP verisi oluşturulamadı.');
-    }
-
-    // Geçici bir dizine .zip dosyasını yaz
     final tempDir = Directory.systemTemp;
-    final zipFileName = '${path.basenameWithoutExtension(objFile.path)}.zip';
+    final zipFileName = '${path.basenameWithoutExtension(sourceFile.path)}.zip';
     final zipFile = File(path.join(tempDir.path, zipFileName));
     await zipFile.writeAsBytes(zipData);
-
     return zipFile;
   }
-  // ========================================================================
-  // ===                 DEĞİŞİKLİKLERİN SONU                           ===
-  // ========================================================================
-
 
   Future<void> fetchPosts() async {
     if (_state == ShowcaseState.loading) return;

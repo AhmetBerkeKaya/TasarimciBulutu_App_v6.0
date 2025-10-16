@@ -5,13 +5,21 @@ import '../../applications/screens/my_applications_screen.dart';
 import '../../dashboard/screens/dashboard_screen.dart';
 
 class ActivityScreen extends StatelessWidget {
-  const ActivityScreen({super.key});
+  // YENİ: Başlangıç sekmesini belirlemek için bir parametre ekliyoruz.
+  final int initialTabIndex;
+
+  const ActivityScreen({
+    super.key,
+    this.initialTabIndex = 0, // Varsayılan olarak ilk sekme (Başvurularım) açılsın.
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return DefaultTabController(
+      // YENİ: Başlangıç sekmesini constructor'dan gelen değere ayarlıyoruz.
+      initialIndex: initialTabIndex,
       length: 2,
       child: Scaffold(
         appBar: AppBar(

@@ -28,3 +28,6 @@ ApsClientId = "XqlX5HipImWRC3wMYDgAqXg4LD0xRJwdCRgaAoPB8jHKtyhy"
 ApsClientSecret = "hjfjG45NqBicADcJMwG1zfW72oNGdW9YTtXs5K8vQwWlvpQU2tPwQNCAgPCh6hgS"
 resolve_s3 = true
 parameter_overrides = "S3BucketName=\"tasarimcibulutu-showcase-files-ahmet\" VpcId=\"vpc-042d4881f4efd3d20\" SubnetIds=\"subnet-0f01188cd159af66f\" SecurityGroupIds=\"sg-039b7e243f86152c1\" MailFrom=\"ahmetberkekaya04@gmail.com\" MailPort=\"587\" MailServer=\"smtp.sendgrid.net\""
+
+[default.global.parameters]
+region = "eu-north-1"

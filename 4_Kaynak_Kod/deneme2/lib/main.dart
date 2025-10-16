@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/providers/application_provider.dart';
 import 'core/providers/auth_provider.dart';
+import 'core/providers/notification_provider.dart';
 import 'core/providers/project_provider.dart';
 import 'core/providers/showcase_provider.dart';
 import 'core/providers/skill_test_provider.dart';
@@ -20,7 +21,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
-
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProxyProvider<AuthProvider, ApplicationProvider>(
           create: (context) => ApplicationProvider(),
           update: (context, auth, previousProvider) {
@@ -54,6 +55,7 @@ void main() async {
             return previousProvider ?? ShowcaseProvider();
           },
         ),
+
       ],
       child: const MyApp(),
     ),

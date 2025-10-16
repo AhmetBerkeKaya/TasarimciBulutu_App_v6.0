@@ -19,7 +19,15 @@ PROCESSED_BUCKET_NAME = os.environ.get('PROCESSED_BUCKET_NAME')
 AWS_REGION = os.environ.get('AWS_REGION', 'eu-north-1')
 
 s3 = boto3.client('s3')
-
+SUPPORTED_ROOT_FILES = [
+    # Nötr ve Mesh Formatları
+    '.obj', '.stl', '.step', '.stp', '.iges', '.igs', '.fbx', '.x_t', '.x_b',
+    # Modern ve Web Formatları
+    '.gltf', '.glb', '.3ds', '.x3d',
+    # Popüler CAD Formatları
+    '.sldprt', '.sldasm', '.ipt', '.iam', '.rvt', '.catpart', '.catproduct', '.cgr',
+    '.prt', '.asm' # Creo ve NX için genel uzantılar
+]
 # ==============================================================================
 # ANA LAMBDA HANDLER
 # ==============================================================================
@@ -42,12 +50,23 @@ def lambda_handler(event, context):
         s3_object = s3.get_object(Bucket=source_bucket, Key=source_key)
         file_content = s3_object['Body'].read()
         
+        root_filename = None
         with zipfile.ZipFile(BytesIO(file_content)) as z:
             file_list = z.namelist()
-            obj_files = [f for f in file_list if f.lower().endswith('.obj')]
-            if not obj_files:
-                raise Exception("ZIP içinde .obj uzantılı dosya bulunamadı.")
-            root_filename = obj_files[0]
+            print(f"ZIP içeriği: {file_list}")
+            
+            # Desteklenen dosya formatlarından herhangi birini ara
+            for ext in SUPPORTED_ROOT_FILES:
+                found_files = [f for f in file_list if f.lower().endswith(ext)]
+                if found_files:
+                    # En kısa dosya yoluna sahip olanı ana dosya olarak seç (genellikle kök dizindedir)
+                    root_filename = min(found_files, key=len)
+                    print(f"Desteklenen ana dosya bulundu: {root_filename}")
+                    break
+        
+        if not root_filename:
+            supported_formats_str = ', '.join(SUPPORTED_ROOT_FILES)
+            raise Exception(f"ZIP içinde desteklenen bir dosya bulunamadı. Desteklenenler: {supported_formats_str}")
 
         bucket_key = f"temp{int(time.time())}{str(uuid.uuid4()).replace('-', '')}".lower()[:63]
         object_key = f"{post_id}.zip"

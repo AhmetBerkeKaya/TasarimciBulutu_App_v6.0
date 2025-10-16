@@ -1,12 +1,15 @@
 # app/routers/notification.py
 
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
-
+from typing import List
 from app import crud, models, schemas
 from app.dependencies import get_current_user, get_db
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
+limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(
     prefix="/notifications",
     tags=["notifications"],
@@ -14,8 +17,10 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=list[schemas.Notification])
+@router.get("/me", response_model=List[schemas.Notification])
+@limiter.limit("60/minute")
 def read_notifications_for_current_user(
+    request: Request,
     skip: int = 0,
     limit: int = 20,
     db: Session = Depends(get_db),

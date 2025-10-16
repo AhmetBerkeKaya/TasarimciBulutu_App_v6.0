@@ -9,6 +9,7 @@ import '../../data/models/application_model.dart';
 import '../../data/models/comment_model.dart';
 import '../../data/models/enums.dart';
 import '../../data/models/message_model.dart';
+import '../../data/models/notification_model.dart';
 import '../../data/models/portfolio_item_model.dart';
 import '../../data/models/project_model.dart';
 import '../../data/models/review_model.dart';
@@ -687,6 +688,43 @@ class ApiService {
           .toList();
     } on DioException {
       return [];
+    }
+  }
+  Future<List<NotificationModel>> getNotifications() async {
+    try {
+      final response = await _dio.get('/notifications/me');
+      return (response.data as List)
+          .map((json) => NotificationModel.fromJson(json))
+          .toList();
+    } on DioException {
+      return [];
+    }
+  }
+
+  Future<void> markNotificationAsRead(String notificationId) async {
+    try {
+      await _dio.post('/notifications/$notificationId/read');
+    } on DioException {
+      // Hata yönetimi eklenebilir
+    }
+  }
+
+  Future<void> markAllNotificationsAsRead() async {
+    try {
+      await _dio.post('/notifications/read-all');
+    } on DioException {
+      // Hata yönetimi eklenebilir
+    }
+  }
+
+  Future<int> getUnreadNotificationCount() async {
+    try {
+      final response = await _dio.get('/notifications/unread-count');
+      // Backend'den {"unread_count": 5} gibi bir JSON dönecek
+      return response.data['unread_count'] as int? ?? 0;
+    } on DioException {
+      // Hata durumunda 0 döndürerek uygulamanın çökmesini engelle
+      return 0;
     }
   }
 }

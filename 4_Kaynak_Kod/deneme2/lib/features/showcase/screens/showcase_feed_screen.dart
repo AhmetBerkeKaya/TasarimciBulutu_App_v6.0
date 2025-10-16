@@ -1,12 +1,13 @@
 // lib/features/showcase/screens/showcase_feed_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'dart:math' as math;
+import 'package:badges/badges.dart' as badges;
 
+import 'package:provider/provider.dart';
+import '../../../core/providers/notification_provider.dart';
 import '../../../core/providers/showcase_provider.dart';
+import '../../notifications/screens/notification_screen.dart';
 import '../widgets/post_card.dart';
-import '../../../common_widgets/loading_indicator.dart';
 import 'create_post_screen.dart';
 
 class ShowcaseFeedScreen extends StatefulWidget {
@@ -293,6 +294,29 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
         titlePadding: const EdgeInsets.only(left: 106, bottom: 45),
       ),
       actions: [
+        Consumer<NotificationProvider>(
+          builder: (context, notificationProvider, child) {
+            return badges.Badge(
+              showBadge: notificationProvider.unreadCount > 0,
+              badgeContent: Text(
+                notificationProvider.unreadCount.toString(),
+                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+              position: badges.BadgePosition.topEnd(top: 4, end: 4),
+              badgeAnimation: const badges.BadgeAnimation.scale(),
+              child: _buildGlassActionButton(
+                icon: Icons.notifications_outlined,
+                onPressed: () {
+                  Navigator.of(context).push(MaterialPageRoute(
+                    builder: (context) => const NotificationScreen(),
+                  ));
+                },
+                theme: theme,
+                isDark: isDark,
+              ),
+            );
+          },
+        ),
         _buildGlassActionButton(
           icon: _isSearchExpanded ? Icons.close : Icons.search,
           onPressed: _toggleSearch,
