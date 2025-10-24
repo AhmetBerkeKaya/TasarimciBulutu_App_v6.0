@@ -3,23 +3,37 @@ Transform: AWS::Serverless-2016-10-31
 Description: >
   TasarimciBulutu Backend: Ana API, 3D Model Processor and Recommendation Engine
 
-# Globals: Tüm fonksiyonlar için ortak ayarlar.
 Globals:
   Function:
     Runtime: python3.12
     Architectures: [x86_64]
-    # VPC ayarlarını Globals'a taşıdım, böylece tüm fonksiyonlar (API dahil)
-    # veritabanına erişebilir.
     VpcConfig:
       SecurityGroupIds: !Split [',', !Ref SecurityGroupIds]
       SubnetIds: !Ref SubnetIds
     Environment:
       Variables:
-        DATABASE_URL: !Ref DatabaseUrl
-        SECRET_KEY: !Ref SecretKey
-        ENCRYPTION_KEY: !Ref EncryptionKey
-        MAIL_USERNAME: !Ref MailUsername
-        MAIL_PASSWORD: !Ref MailPassword
+        DATABASE_URL: !Join
+          - ''
+          - - '{{resolve:secretsmanager:tasarimcibulutu/secrets:SecretString:DatabaseUrl}}'
+        SECRET_KEY: !Join
+          - ''
+          - - '{{resolve:secretsmanager:tasarimcibulutu/secrets:SecretString:SecretKey}}'
+        ENCRYPTION_KEY: !Join
+          - ''
+          - - '{{resolve:secretsmanager:tasarimcibulutu/secrets:SecretString:EncryptionKey}}'
+        MAIL_USERNAME: !Join
+          - ''
+          - - '{{resolve:secretsmanager:tasarimcibulutu/secrets:SecretString:MailUsername}}'
+        MAIL_PASSWORD: !Join
+          - ''
+          - - '{{resolve:secretsmanager:tasarimcibulutu/secrets:SecretString:MailPassword}}'
+        APS_CLIENT_ID: !Join
+          - ''
+          - - '{{resolve:secretsmanager:tasarimcibulutu/secrets:SecretString:ApsClientId}}'
+        APS_CLIENT_SECRET: !Join
+          - ''
+          - - '{{resolve:secretsmanager:tasarimcibulutu/secrets:SecretString:ApsClientSecret}}'
+        
         MAIL_FROM: !Ref MailFrom
         MAIL_PORT: !Ref MailPort
         MAIL_SERVER: !Ref MailServer
@@ -28,40 +42,19 @@ Globals:
 Parameters:
   S3BucketName:
     Type: String
-  DatabaseUrl:
-    Type: String
-    NoEcho: true
   VpcId:
     Type: AWS::EC2::VPC::Id
   SubnetIds:
     Type: List<AWS::EC2::Subnet::Id>
   SecurityGroupIds:
     Type: String
-  SecretKey:
-    Type: String
-    NoEcho: true
-  EncryptionKey:
-    Type: String
-    NoEcho: true
-  MailUsername:
-    Type: String
-    NoEcho: true
-  MailPassword:
-    Type: String
-    NoEcho: true
   MailFrom:
     Type: String
   MailPort:
     Type: Number
   MailServer:
     Type: String
-  ApsClientId:
-    Type: String
-    NoEcho: true
-  ApsClientSecret:
-    Type: String
-    NoEcho: true
-
+  
 Resources:
   ApiFunction:
     Type: AWS::Serverless::Function
@@ -71,26 +64,19 @@ Resources:
       Handler: app.main.handler
       Timeout: 30
       MemorySize: 512
-
-      # 1. DÜZELTME: VPC TESTİ İÇİN EKLEDİĞİMİZ BOŞ SATIRI SİLİYORUZ.
-      # Fonksiyonun tekrar Globals'daki VPC ayarını kullanmasını sağlıyoruz.
-      # VpcConfig: {}  <--- BU SATIRI SİLİN.
-      
-      Policies: # API'nin S3'e erişmesi için Policy
+      Policies: 
         - S3CrudPolicy:
             BucketName: !Ref S3BucketName
-            
-      # 2. DÜZELTME: EKSİK ORTAM DEĞİŞKENLERİNİ EKLİYORUZ.
-      Environment:
-        Variables:
-          APS_CLIENT_ID: !Ref ApsClientId
-          APS_CLIENT_SECRET: !Ref ApsClientSecret
-          
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:tasarimcibulutu/secrets-*"
       Events:
         ApiRoot:
           Type: Api
           Properties:
-            Path: /{proxy+} # Gelen tüm istekleri yakala
+            Path: /{proxy+}
             Method: ANY
             RestApiId: !Ref ServerlessApi
         ApiBase:
@@ -98,9 +84,9 @@ Resources:
           Properties:
             Path: /
             Method: ANY
+            # DÜZELTİLDİ: 'ServerServerlessApi' değil, 'ServerlessApi'
             RestApiId: !Ref ServerlessApi
 
-  # YENİ EKLENDİ: API Gateway tanımı
   ServerlessApi:
     Type: AWS::Serverless::Api
     Properties:
@@ -108,7 +94,7 @@ Resources:
       Cors:
         AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS,PATCH'"
         AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
-        AllowOrigin: "'*'" # Güvenlik için bunu Flutter web URL'iniz ile değiştirebilirsiniz
+        AllowOrigin: "'*'" 
 
   ModelProcessorFunction:
     Type: AWS::Serverless::Function
@@ -121,12 +107,12 @@ Resources:
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref S3BucketName
-      Environment:
-        Variables:
-          PROCESSED_BUCKET_NAME: !Ref S3BucketName 
-          APS_CLIENT_ID: !Ref ApsClientId
-          APS_CLIENT_SECRET: !Ref ApsClientSecret
-      
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:tasarimcibulutu/secrets-*"
+
   RecommenderFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -135,6 +121,12 @@ Resources:
       Handler: recommender_lambda.handler.handler
       Timeout: 300
       MemorySize: 256
+      Policies:
+        - Statement:
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Sub "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:tasarimcibulutu/secrets-*"
       Events:
         ScheduledTrigger:
           Type: Schedule
