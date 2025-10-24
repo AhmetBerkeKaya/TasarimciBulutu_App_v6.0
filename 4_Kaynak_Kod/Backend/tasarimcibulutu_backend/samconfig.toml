@@ -9,24 +9,25 @@ confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
 disable_rollback = true
 image_repositories = []
+region = "eu-north-1" # Global parametreyi buraya taşıdım
 
-# --- Parametreleri tek tek ve doğrudan tanımlıyoruz ---
-S3BucketName = "tasarimcibulutu-showcase-files-ahmet"
-VpcId = "vpc-042d4881f4efd3d20"
-SubnetIds = "subnet-0f01188cd159af66f"
-SecurityGroupIds = "sg-0b64a1f400813e7c6"
-DatabaseUrl = "postgresql://postgres:Abk.251085.@tasarimcibulutu-db.crcm0euwom7f.eu-north-1.rds.amazonaws.com:5432/tasarimcibulutu_db"
-SecretKey = "bf1b6379539c1032b575a74a12a7629a8a817651a02b48a03a74b0f7e4a7b0f7"
-EncryptionKey = "rO7nN4mZ4le0YkYPV3zOTXsw118Kodhhl87jkYAxBeE="
-MailUsername = "apikey"
-MailPassword = "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"
-MailFrom = "ahmetberkekaya04@gmail.com"
-MailPort = 587
-MailServer = "smtp.sendgrid.net"
-ApsClientId = "XqlX5HipImWRC3wMYDgAqXg4LD0xRJwdCRgaAoPB8jHKtyhy"
-ApsClientSecret = "hjfjG45NqBicADcJMwG1zfW72oNGdW9YTtXs5K8vQwWlvpQU2tPwQNCAgPCh6hgS"
-resolve_s3 = true
-parameter_overrides = "S3BucketName=\"tasarimcibulutu-showcase-files-ahmet\" VpcId=\"vpc-042d4881f4efd3d20\" SubnetIds=\"subnet-0f01188cd159af66f\" SecurityGroupIds=\"sg-039b7e243f86152c1\" MailFrom=\"ahmetberkekaya04@gmail.com\" MailPort=\"587\" MailServer=\"smtp.sendgrid.net\""
+parameter_overrides = [
+  "S3BucketName=\"tasarimcibulutu-showcase-files-ahmet\"",
+  "VpcId=\"vpc-042d4881f4efd3d20\"",
+  "SubnetIds=\"subnet-0f01188cd159af66f\"",
+  "SecurityGroupIds=\"sg-0b64a1f400813e7c6\"",
+  "DatabaseUrl=\"postgresql://postgres:Abk.251085.@tasarimcibulutu-db-restored.crcm0euwom7f.eu-north-1.rds.amazonaws.com:5432/tasarimcibulutu_db\"",
+  "SecretKey=\"bf1b6379539c1032b575a74a12a7629a8a817651a02b48a03a74b0f7e4a7b0f7\"",
+  "EncryptionKey=\"rO7nN4mZ4le0YkYPV3zOTXsw118Kodhhl87jkYAxBeE=\"",
+  "MailUsername=\"apikey\"",
+  "MailPassword=\"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\"",
+  "MailFrom=\"ahmetberkekaya04@gmail.com\"",
+  "MailPort=587",
+  "MailServer=\"smtp.sendgrid.net\"",
+  "ApsClientId=\"XqlX5HipImWRC3wMYDgAqXg4LD0xRJwdCRgaAoPB8jHKtyhy\"",
+  "ApsClientSecret=\"hjfjG45NqBicADcJMwG1zfW72oNGdW9YTtXs5K8vQwWlvpQU2tPwQNCAgPCh6hgS\""
+]
 
 [default.global.parameters]
-region = "eu-north-1"
+
+

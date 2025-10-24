@@ -29,7 +29,6 @@ pydantic==2.11.7
 pydantic-settings==2.10.1
 pydantic_core==2.33.2
 Pygments==2.19.2
-pytest==8.4.1
 python-dotenv==1.1.1
 python-jose==3.5.0
 rsa==4.9.1
@@ -39,11 +38,12 @@ SQLAlchemy==2.0.41
 starlette
 typing-inspection==0.4.1
 typing_extensions==4.14.0
-uvicorn==0.34.3
 slowapi==0.1.9
 requests
-psycopg2-binary
-SQLAlchemy
 phonenumbers
 boto3
 python-multipart
+
+# YENİ EKLENDİ: FastAPI'yi Lambda'ya uyarlamak için:
+mangum
+fastapi-mail==1.4.1

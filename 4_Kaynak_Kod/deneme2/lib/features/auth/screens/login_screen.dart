@@ -214,35 +214,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 24),
                 Row(
-                  children: [
-                    const Expanded(child: Divider()),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Text('veya', style: TextStyle(color: theme.colorScheme.secondary)),
-                    ),
-                    const Expanded(child: Divider()),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                SocialLoginButton(
-                  text: 'Google ile Giriş',
-                  icon: Icon(
-                    Icons.g_mobiledata_rounded,
-                    color: theme.textTheme.bodyLarge?.color,
-                  ),
-                  onPressed: () {},
-                ),
-                const SizedBox(height: 16),
-                SocialLoginButton(
-                  text: 'Apple ile Giriş',
-                  icon: Icon(
-                    Icons.apple,
-                    color: theme.textTheme.bodyLarge?.color,
-                  ),
-                  onPressed: () {},
-                ),
-                const SizedBox(height: 48),
-                Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const Text('Hesabınız yok mu?'),

@@ -1,13 +1,15 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  TasarimciBulutu Backend: 3D Model Processor and Recommendation Engine
+  TasarimciBulutu Backend: Ana API, 3D Model Processor and Recommendation Engine
 
 # Globals: Tüm fonksiyonlar için ortak ayarlar.
 Globals:
   Function:
     Runtime: python3.12
     Architectures: [x86_64]
+    # VPC ayarlarını Globals'a taşıdım, böylece tüm fonksiyonlar (API dahil)
+    # veritabanına erişebilir.
     VpcConfig:
       SecurityGroupIds: !Split [',', !Ref SecurityGroupIds]
       SubnetIds: !Ref SubnetIds
@@ -61,11 +63,57 @@ Parameters:
     NoEcho: true
 
 Resources:
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: TasarimciBulutu-Api
+      CodeUri: .
+      Handler: app.main.handler
+      Timeout: 30
+      MemorySize: 512
+
+      # 1. DÜZELTME: VPC TESTİ İÇİN EKLEDİĞİMİZ BOŞ SATIRI SİLİYORUZ.
+      # Fonksiyonun tekrar Globals'daki VPC ayarını kullanmasını sağlıyoruz.
+      # VpcConfig: {}  <--- BU SATIRI SİLİN.
+      
+      Policies: # API'nin S3'e erişmesi için Policy
+        - S3CrudPolicy:
+            BucketName: !Ref S3BucketName
+            
+      # 2. DÜZELTME: EKSİK ORTAM DEĞİŞKENLERİNİ EKLİYORUZ.
+      Environment:
+        Variables:
+          APS_CLIENT_ID: !Ref ApsClientId
+          APS_CLIENT_SECRET: !Ref ApsClientSecret
+          
+      Events:
+        ApiRoot:
+          Type: Api
+          Properties:
+            Path: /{proxy+} # Gelen tüm istekleri yakala
+            Method: ANY
+            RestApiId: !Ref ServerlessApi
+        ApiBase:
+          Type: Api
+          Properties:
+            Path: /
+            Method: ANY
+            RestApiId: !Ref ServerlessApi
+
+  # YENİ EKLENDİ: API Gateway tanımı
+  ServerlessApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS,PATCH'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'" # Güvenlik için bunu Flutter web URL'iniz ile değiştirebilirsiniz
+
   ModelProcessorFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: TasarimciBulutu-ModelProcessor
-      # --- CodeUri BURADA BELİRTİLMELİ ---
       CodeUri: .
       Handler: model_processor.lambda_function.lambda_handler
       Timeout: 900
@@ -75,7 +123,6 @@ Resources:
             BucketName: !Ref S3BucketName
       Environment:
         Variables:
-          # Sadece bu fonksiyona özel değişkenler:
           PROCESSED_BUCKET_NAME: !Ref S3BucketName 
           APS_CLIENT_ID: !Ref ApsClientId
           APS_CLIENT_SECRET: !Ref ApsClientSecret
@@ -84,7 +131,6 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: TasarimciBulutu-Recommender
-      # --- CodeUri BURADA DA BELİRTİLMELİ ---
       CodeUri: .
       Handler: recommender_lambda.handler.handler
       Timeout: 300

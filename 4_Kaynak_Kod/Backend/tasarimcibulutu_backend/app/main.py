@@ -1,13 +1,15 @@
 # main.py
 
+# YENİ EKLENDİ: AWS Lambda adaptörü
+from mangum import Mangum
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-# YENİ: Middleware'i artık kullanacağız.
 from slowapi.middleware import SlowAPIMiddleware 
 from .config import settings
-from slowapi.util import get_remote_address # get_remote_address'ı da import edelim
+from slowapi.util import get_remote_address
 
 from app.routers import user, project, application, auth, message, notification, skill_test, skill, portfolio, work_experience, review, showcase, recommendation
 from fastapi.staticfiles import StaticFiles
@@ -15,14 +17,12 @@ from . import models
 from .database import engine
 
 
-# --- GÜNCELLENMİŞ RATE LIMITER KURULUMU ---
-# Limiter'ı key_func olmadan başlatabiliriz, middleware kendisi halledecek.
-# VEYA IP adresine göre olmasını istiyorsak get_remote_address kullanabiliriz.
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
-# default_limits: Tüm endpoint'ler için geçerli olacak genel limit.
-# --- GÜNCELLENMİŞ RATE LIMITER KURULUMU SONU ---
 
-
+# Bu satır, staj raporunuzda (Sayfa 17) bahsettiğiniz Alembic'in
+# production ortamında yönetmesi gerektiği için opsiyoneldir.
+# Lambda'nın her soğuk başlatmada bunu çalıştırması ideal değildir,
+# ancak geliştirme için bir sakıncası yok.
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -31,20 +31,16 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# --- GÜNCELLENMİŞ RATE LIMITER'I UYGULAMAYA EKLEME ---
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# YENİ: Middleware'i artık aktif olarak kullanıyoruz.
-# Bu satır, yukarıda tanımlanan "default_limits"i tüm endpoint'lere uygular.
 app.add_middleware(SlowAPIMiddleware)
-# --- GÜNCELLENMİŞ RATE LIMITER'I UYGULAMAYA EKLEME SONU ---
 
-
+# Static dosyaları AWS üzerinde (S3/CloudFront) sunmak daha iyidir
+# ancak bu kurulum da çalışacaktır.
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # API Router'larını uygulamaya dahil etme
-# (Burada bir değişiklik yok)
 app.include_router(auth.router)
 app.include_router(user.router)
 app.include_router(project.router)
@@ -58,8 +54,12 @@ app.include_router(work_experience.router)
 app.include_router(review.router)
 app.include_router(showcase.router)
 app.include_router(recommendation.router)
+
 @app.get("/")
-# Bu özel limit, global limiti ezer.
 @limiter.limit("10/minute")
 def read_root(request: Request):
     return {"message": "Welcome to TasarimciBulutu API"}
+
+# YENİ EKLENDİ: FastAPI 'app' nesnesini Mangum ile sarmala
+# ve 'handler' olarak dışa aktar.
+handler = Mangum(app)

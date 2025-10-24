@@ -11,7 +11,7 @@ class DioClient {
 
   final Dio _dio = Dio(
     BaseOptions(
-      baseUrl: "http://10.0.2.2:8000",
+      baseUrl: "https://8bvn2qklf5.execute-api.eu-north-1.amazonaws.com/Prod",
       connectTimeout: const Duration(seconds: 60),
       receiveTimeout: const Duration(seconds: 60),
       responseType: ResponseType.json,
@@ -40,11 +40,12 @@ class AuthInterceptor extends Interceptor {
     // Bu, gelecekte yeni public endpoint'ler eklendiğinde
     // sadece burayı güncellememizin yeterli olmasını sağlar.
     final publicPaths = [
+      '/', // Ana (kök) adresi de public olarak ekleyin
       '/token',
-      '/users/', // Sadece POST metodu için kontrol aşağıda yapılıyor
+      '/users/',
       '/password-recovery',
       '/reset-password',
-      '/auth/google', // Google ile giriş de public olmalı
+      '/auth/google',
     ];
 
     // Mevcut isteğin yolu, public yollardan biriyle eşleşiyor mu?
