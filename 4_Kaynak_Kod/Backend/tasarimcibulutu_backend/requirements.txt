@@ -41,11 +41,9 @@ typing-inspection==0.4.1
 typing_extensions==4.14.0
 uvicorn==0.34.3
 slowapi==0.1.9
-# 3D model işleme ve API iletişimi için
 requests
-
-# Veritabanı bağlantısı için
 psycopg2-binary
-
-# Recommender fonksiyonunun veritabanı işlemleri için
 SQLAlchemy
+phonenumbers
+boto3
+python-multipart

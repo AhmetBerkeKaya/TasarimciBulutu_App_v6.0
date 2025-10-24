@@ -3,7 +3,6 @@ version = 0.1
 
 [default.deploy.parameters]
 stack_name = "tasarimcibulutu"
-region = "eu-north-1"
 s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-qqp3uh8ecuzy"
 s3_prefix = "tasarimcibulutu"
 confirm_changeset = true

@@ -1,4 +1,4 @@
-#!C:\projects\TasarimciBulutu_App-e756185bef511b408b6e44169c9b627d0698c208\4_Kaynak_Kod\Backend\tasarimcibulutu_backend\env\Scripts\python.exe
+#!C:\Users\HP\Desktop\TasarimciBulutu_App_v6.0\4_Kaynak_Kod\Backend\tasarimcibulutu_backend\env\Scripts\python.exe
 
 import sys
 import json

@@ -8,7 +8,7 @@ if defined _OLD_CODEPAGE (
     "%SystemRoot%\System32\chcp.com" 65001 > nul
 )
 
-set "VIRTUAL_ENV=C:\projects\TasarimciBulutu_App-e756185bef511b408b6e44169c9b627d0698c208\4_Kaynak_Kod\Backend\tasarimcibulutu_backend\env"
+set "VIRTUAL_ENV=C:\Users\HP\Desktop\TasarimciBulutu_App_v6.0\4_Kaynak_Kod\Backend\tasarimcibulutu_backend\env"
 
 if not defined PROMPT set PROMPT=$P$G
 

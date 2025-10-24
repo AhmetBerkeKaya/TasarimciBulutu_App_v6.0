@@ -12,7 +12,7 @@ import '../../../core/services/api_service.dart';
 import '../../../data/models/enums.dart';
 import '../../../data/models/user_model.dart';
 import '../../../data/models/test_result_model.dart';
-import '../../common_widgets/pdf_viewer_screen.dart';
+import '../../../common_widgets/pdf_viewer_screen.dart';
 import '../../skill_assessment/screens/skill_test_list_screen.dart';
 import '../widgets/review_card.dart';
 import '../widgets/skill_badge.dart';
