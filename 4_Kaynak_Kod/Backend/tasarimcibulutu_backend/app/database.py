@@ -4,6 +4,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import declarative_base
 from .config import settings
+from sqlalchemy.types import TypeDecorator
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON
 
 engine = create_engine(
     settings.DATABASE_URL,
@@ -22,3 +25,20 @@ engine = create_engine(
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
+
+class JSONB_or_JSON(TypeDecorator):
+    """
+    PostgreSQL için JSONB, SQLite için JSON kullanan bir çevirmen.
+    """
+    impl = JSONB
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "sqlite":
+            # DÜZELTME: 'process' çağrısını kaldırdık.
+            # Sadece 'JSON()' nesnesini döndürüyoruz.
+            return JSON()
+        else:
+            # DÜZELTME: 'process' çağrısını kaldırdık.
+            # Sadece 'self.impl' (yani JSONB nesnesini) döndürüyoruz.
+            return self.impl

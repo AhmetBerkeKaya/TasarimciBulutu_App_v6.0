@@ -3,10 +3,10 @@
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import Column, String, DateTime, ForeignKey, Text
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.database import Base
-
+from app.database import JSONB_or_JSON
 class AuditLog(Base):
     """
     Uygulama içinde gerçekleşen önemli olayları ve veri değişikliklerini
@@ -27,8 +27,7 @@ class AuditLog(Base):
     
     # Değişikliğin detayları (örn: eski ve yeni değerler)
     # JSONB kullanarak esnek bir yapı sağlıyoruz.
-    details = Column(JSONB, nullable=True)
-    
+    details = Column(JSONB_or_JSON, nullable=True)    
     # İşlemin yapıldığı zaman damgası
     timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
 

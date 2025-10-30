@@ -1,3 +1,6 @@
+# app/crud/application.py (GÜNCELLENMİŞ HALİ)
+
+import logging # <-- EKLENDİ
 from sqlalchemy.orm import Session, joinedload
 from app import models, schemas
 from uuid import UUID
@@ -7,6 +10,11 @@ from app.models.application import ApplicationStatus
 from app.models.project import ProjectStatus
 from app import models, schemas, crud
 from app.models.notification import NotificationType
+
+# === YENİ LOGGER ===
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO) # Bu modül için de INFO seviyesini ayarlıyoruz
+# ===================
 
 def get_application(db: Session, application_id: str):
     return db.query(models.Application).filter(models.Application.id == application_id).first()
@@ -25,23 +33,27 @@ def update_application_status(
     Bir başvurunun durumunu günceller.
     Durum değişikliğine göre freelancer'a bildirim gönderir.
     """
+    logger.info(f"Başvuru durumu güncelleniyor: ID={application_id}, YeniDurum={new_status}, GüncelleyenKullanıcı={current_user_id}") # <-- EKLENDİ
+    
     application = db.query(models.Application).options(
         joinedload(models.Application.project)
     ).filter(models.Application.id == application_id).first()
     
     if not application or application.project.user_id != current_user_id:
+        logger.warning(f"Başvuru güncelleme yetkisi reddedildi veya başvuru bulunamadı: ID={application_id}, Kullanıcı={current_user_id}") # <-- EKLENDİ
         return None
     
     # Bilgileri, veritabanı işlemi öncesinde güvenli değişkenlere alalım.
     project_title = application.project.title
     freelancer_id = application.freelancer_id
-    project_id = application.project_id
+    project_id = application.project.id
 
     # Başvurunun ve projenin durumunu güncelle
     application.status = new_status
     
     # --- KRİTİK DEĞİŞİKLİK: Enum'ların değerlerini (.value) karşılaştırıyoruz ---
     if new_status.value == ApplicationStatus.accepted.value:
+        logger.info(f"Başvuru kabul edildi, proje (ID={project_id}) IN_PROGRESS olarak ayarlanıyor.") # <-- EKLENDİ
         application.project.status = ProjectStatus.IN_PROGRESS.value
         (
             db.query(models.Application)
@@ -56,6 +68,8 @@ def update_application_status(
     db.commit()
     db.refresh(application)
     
+    logger.info(f"Başvuru durumu başarıyla güncellendi: ID={application_id}, YeniDurum={new_status}") # <-- EKLENDİ
+
     # --- FREELANCER'A BİLDİRİM GÖNDERME ---
     try:
         notification_type = None
@@ -81,7 +95,8 @@ def update_application_status(
             )
 
     except Exception as e:
-        print(f"Başvuru durumu değişikliği sonrası bildirim oluşturulurken hata oluştu: {e}")
+        # print() -> logger.error() olarak değiştirildi
+        logger.error(f"Başvuru durumu (ID={application_id}) değişikliği sonrası bildirim oluşturulurken HATA: {e}") # <-- GÜNCELLENDİ
 
     return application
 
@@ -117,6 +132,8 @@ def create_application(db: Session, application: schemas.ApplicationCreate, free
     """
     Yeni bir başvuru oluşturur ve proje sahibine bildirim gönderir.
     """
+    logger.info(f"Yeni başvuru oluşturuluyor: ProjeID={application.project_id}, FreelancerID={freelancer_id}") # <-- EKLENDİ
+
     # 1. Adım: Başvuruyu veritabanına kaydet
     db_application = models.Application(
         project_id=application.project_id,
@@ -130,6 +147,8 @@ def create_application(db: Session, application: schemas.ApplicationCreate, free
     db.add(db_application)
     db.commit()
     db.refresh(db_application)
+    
+    logger.info(f"Yeni başvuru başarıyla oluşturuldu: ID={db_application.id}") # <-- EKLENDİ
 
     # 2. Adım: Proje sahibi için bildirim oluştur
     try:
@@ -149,8 +168,8 @@ def create_application(db: Session, application: schemas.ApplicationCreate, free
                 related_entity_id=project.id      # Tıklayınca projeye gitmesi için
             )
     except Exception as e:
-        # Bildirim hatası ana işlemi etkilemesin
-        print(f"Başvuru sonrası bildirim oluşturulurken hata oluştu: {e}")
+        # print() -> logger.error() olarak değiştirildi
+        logger.error(f"Başvuru (ID={db_application.id}) sonrası bildirim oluşturulurken HATA: {e}") # <-- GÜNCELLENDİ
 
     # 3. Adım: Oluşturulan başvuru nesnesini döndür
     return db_application
@@ -158,21 +177,25 @@ def create_application(db: Session, application: schemas.ApplicationCreate, free
 def update_application(db: Session, application_id: str, application_update: schemas.ApplicationUpdate):
     db_application = get_application(db, application_id)
     if not db_application:
+        logger.warning(f"Güncellenmek istenen başvuru bulunamadı: ID={application_id}") # <-- EKLENDİ
         return None
     update_data = application_update.dict(exclude_unset=True)
     for key, value in update_data.items():
         setattr(db_application, key, value)
     db.commit()
     db.refresh(db_application)
+    logger.info(f"Başvuru (basit) güncellendi: ID={application_id}") # <-- EKLENDİ
     return db_application
 
 
 def delete_application(db: Session, application_id: str):
     db_application = get_application(db, application_id)
     if not db_application:
+        logger.warning(f"Silinmek istenen başvuru bulunamadı: ID={application_id}") # <-- EKLENDİ
         return None
     db.delete(db_application)
     db.commit()
+    logger.info(f"Başvuru silindi: ID={application_id}") # <-- EKLENDİ
     return db_application
 
 def get_accepted_application_for_project(db: Session, project_id: UUID) -> models.Application | None:

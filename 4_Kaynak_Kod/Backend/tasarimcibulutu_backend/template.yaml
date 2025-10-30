@@ -10,6 +10,7 @@ Globals:
     VpcConfig:
       SecurityGroupIds: !Split [',', !Ref SecurityGroupIds]
       SubnetIds: !Ref SubnetIds
+    Tracing: Active # Bu, tüm fonksiyonlar için X-Ray'i açar
     Environment:
       Variables:
         DATABASE_URL: !Join
@@ -95,7 +96,8 @@ Resources:
         AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS,PATCH'"
         AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
         AllowOrigin: "'*'" 
-
+      TracingEnabled: true
+      
   ModelProcessorFunction:
     Type: AWS::Serverless::Function
     Properties:

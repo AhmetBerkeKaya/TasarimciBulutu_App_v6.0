@@ -1,5 +1,6 @@
-# app/crud/message.py
+# app/crud/message.py (GÜNCELLENMİŞ HALİ)
 
+import logging # <-- EKLENDİ
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, desc, func, case, update
 # --- YENİ İMPORTLAR ---
@@ -9,6 +10,11 @@ from app.models.notification import NotificationType
 from typing import List
 from uuid import UUID
 from datetime import datetime, timezone
+
+# === YENİ LOGGER ===
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO) # Bu modül için de INFO seviyesini ayarlıyoruz
+# ===================
 
 # ... (get_conversation fonksiyonu aynı kalıyor) ...
 def get_conversation(db: Session, user1_id: UUID, user2_id: UUID) -> List[models.Message]:
@@ -32,6 +38,8 @@ def get_conversation(db: Session, user1_id: UUID, user2_id: UUID) -> List[models
 # --- GÜNCELLENMİŞ FONKSİYON ---
 def create_message(db: Session, message: schemas.MessageCreate, sender_id: UUID) -> models.Message:
     """Güvenli bir şekilde yeni bir mesaj oluşturur ve alıcıya bildirim gönderir."""
+    logger.info(f"Yeni mesaj oluşturuluyor: GönderenID={sender_id}, AlıcıID={message.receiver_id}") # <-- EKLENDİ
+
     # 1. Adım: Mesajı veritabanına kaydet
     db_message = models.Message(
         sender_id=sender_id,
@@ -62,7 +70,8 @@ def create_message(db: Session, message: schemas.MessageCreate, sender_id: UUID)
     except Exception as e:
         # Bildirim oluşturma başarısız olursa, ana işlemi (mesaj gönderme)
         # etkilememesi için hatayı loglayıp devam et.
-        print(f"Bildirim oluşturulurken hata oluştu: {e}")
+        # print() -> logger.error() olarak değiştirildi
+        logger.error(f"Mesaj (ID={db_message.id}) sonrası bildirim oluşturulurken HATA: {e}") # <-- GÜNCELLENDİ
 
     # 3. Adım: Oluşturulan mesaj nesnesini döndür
     return db_message
@@ -90,6 +99,10 @@ def get_conversations(db: Session, user_id: UUID) -> List[models.Message]:
     ).subquery()
 
     conversations = db.query(models.Message).filter(
+        # ÖNEMLİ NOT: Buradaki '.in_(latest_message_subquery)' satırı,
+        # bir önceki loglarda SAWarning üreten satırdır.
+        # Düzeltmek için .in_(latest_message_subquery.select()) kullanabilirsiniz
+        # ancak şimdilik loglamaya odaklanıyoruz.
         models.Message.created_at.in_(latest_message_subquery)
     ).order_by(desc(models.Message.created_at)).all()
     
@@ -97,17 +110,23 @@ def get_conversations(db: Session, user_id: UUID) -> List[models.Message]:
 
 def mark_messages_as_read(db: Session, sender_id: UUID, receiver_id: UUID):
     """Bir kullanıcıdan diğerine gönderilen okunmamış mesajları okundu olarak işaretler."""
-    db.query(models.Message).filter(
-        models.Message.sender_id == sender_id,
-        models.Message.receiver_id == receiver_id,
-        models.Message.is_read == False
-    ).update({"is_read": True})
+    logger.info(f"Mesajlar okundu olarak işaretleniyor: GönderenID={sender_id}, AlıcıID={receiver_id}") # <-- EKLENDİ
 
+    try:
+        db.query(models.Message).filter(
+            models.Message.sender_id == sender_id,
+            models.Message.receiver_id == receiver_id,
+            models.Message.is_read == False
+        ).update({"is_read": True})
+        db.commit()
+    except Exception as e:
+        logger.error(f"Mesajlar okundu olarak işaretlenirken HATA: {e}") # <-- EKLENDİ
+        db.rollback()
 
-    db.commit()
 
 def soft_delete_message(db: Session, message: models.Message, user_id: UUID):
     """Mesajı, silen kişiye göre işaretler."""
+    logger.info(f"Tekil mesaj siliniyor (soft delete): MesajID={message.id}, KullanıcıID={user_id}") # <-- EKLENDİ
     if message.sender_id == user_id:
         message.deleted_by_sender = True
     elif message.receiver_id == user_id:
@@ -123,6 +142,8 @@ def soft_delete_conversation(db: Session, user_id: UUID, other_user_id: UUID) ->
     Bir kullanıcının, diğer bir kullanıcıyla olan konuşmasındaki tüm mesajları
     kendisi için silinmiş olarak işaretler.
     """
+    logger.info(f"Konuşma siliniyor (soft delete): KullanıcıID={user_id}, DiğerKullanıcıID={other_user_id}") # <-- EKLENDİ
+
     try:
         # Ben göndericiysem, deleted_by_sender'ı True yap
         db.query(models.Message).filter(
@@ -137,8 +158,10 @@ def soft_delete_conversation(db: Session, user_id: UUID, other_user_id: UUID) ->
         ).update({"deleted_by_receiver": True}, synchronize_session=False)
         
         db.commit()
+        logger.info(f"Konuşma başarıyla silindi (soft delete): KullanıcıID={user_id}, DiğerKullanıcıID={other_user_id}") # <-- EKLENDİ
         return True
     except Exception as e:
         db.rollback()
-        print(f"An error occurred: {e}")
+        # print() -> logger.error() olarak değiştirildi
+        logger.error(f"Konuşma silinirken (soft delete) HATA: {e}") # <-- GÜNCELLENDİ
         return False

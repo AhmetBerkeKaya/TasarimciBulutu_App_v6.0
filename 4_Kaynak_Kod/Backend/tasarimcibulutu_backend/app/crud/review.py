@@ -1,4 +1,6 @@
-# app/crud/review.py
+# app/crud/review.py (GÜNCELLENMİŞ HALİ)
+
+import logging # <-- EKLENDİ
 import uuid
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
@@ -8,6 +10,10 @@ from app import models, schemas, crud
 from app.models.notification import NotificationType
 # --- BİTTİ ---
 
+# === YENİ LOGGER ===
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO) # Bu modül için de INFO seviyesini ayarlıyoruz
+# ===================
 
 def get_review_by_reviewer_and_project(db: Session, reviewer_id: uuid.UUID, project_id: uuid.UUID):
     """Kullanıcının bir proje için daha önce yorum yapıp yapmadığını kontrol eder."""
@@ -19,17 +25,27 @@ def get_review_by_reviewer_and_project(db: Session, reviewer_id: uuid.UUID, proj
     ).first()
 
 
-# --- GÜNCELLENMİŞ FONKSİYON ---
-def create_review(db: Session, review: schemas.ReviewCreate, reviewer_id: uuid.UUID) -> models.Review:
+# --- GÜNCELLENMİŞ FONKSİYON (Loglama ve Hata Yönetimi) ---
+def create_review(db: Session, review: schemas.ReviewCreate, reviewer_id: uuid.UUID) -> models.Review | None:
     """Yeni bir değerlendirme oluşturur ve değerlendirilen kullanıcıya bildirim gönderir."""
-    # 1. Adım: Değerlendirmeyi veritabanına kaydet
-    db_review = models.Review(
-        **review.model_dump(),
-        reviewer_id=reviewer_id
-    )
-    db.add(db_review)
-    db.commit()
-    db.refresh(db_review)
+    logger.info(f"Yeni değerlendirme oluşturuluyor: ProjeID={review.project_id}, DeğerlendirenID={reviewer_id}, DeğerlendirilenID={review.reviewee_id}") # <-- EKLENDİ
+    
+    try:
+        # 1. Adım: Değerlendirmeyi veritabanına kaydet
+        db_review = models.Review(
+            **review.model_dump(),
+            reviewer_id=reviewer_id
+        )
+        db.add(db_review)
+        db.commit()
+        db.refresh(db_review)
+        
+        logger.info(f"Değerlendirme başarıyla oluşturuldu: ID={db_review.id}, ProjeID={review.project_id}") # <-- EKLENDİ
+
+    except Exception as e:
+        logger.error(f"Değerlendirme veritabanına kaydedilirken HATA: ProjeID={review.project_id}, DeğerlendirenID={reviewer_id}. Hata: {e}") # <-- EKLENDİ
+        db.rollback()
+        return None
 
     # 2. Adım: Değerlendirilen kullanıcıya bildirim gönder
     try:
@@ -51,7 +67,8 @@ def create_review(db: Session, review: schemas.ReviewCreate, reviewer_id: uuid.U
             )
 
     except Exception as e:
-        print(f"Değerlendirme sonrası bildirim oluşturulurken hata oluştu: {e}")
+        # print() -> logger.error() olarak değiştirildi
+        logger.error(f"Değerlendirme (ID={db_review.id}) sonrası bildirim oluşturulurken HATA: {e}") # <-- GÜNCELLENDİ
 
     # 3. Adım: Oluşturulan review nesnesini döndür
     return db_review

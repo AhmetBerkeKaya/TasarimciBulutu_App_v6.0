@@ -33,12 +33,6 @@ def read_test_result(test_result_id: UUID4, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Test result not found")
     return db_test_result
 
-@router.put("/{test_result_id}", response_model=schemas.TestResult)
-def update_test_result(test_result_id: UUID4, test_result_update: schemas.TestResultUpdate, db: Session = Depends(get_db)):
-    updated_test_result = crud.update_test_result(db, result_id=test_result_id, result_update=test_result_update)
-    if not updated_test_result:
-        raise HTTPException(status_code=404, detail="Test result not found")
-    return updated_test_result
 
 @router.delete("/{test_result_id}", response_model=schemas.TestResult)
 def delete_test_result(test_result_id: UUID4, db: Session = Depends(get_db)):
