@@ -1,0 +1,43 @@
+# /.github/workflows/deploy.yml (GÜNCELLENMİŞ HALİ)
+
+name: SAM Deploy to Production
+
+on:
+  push:
+    branches:
+      - main  # Bu doğruymuş
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Kodu indir (Checkout)
+        uses: actions/checkout@v4
+
+      - name: Python 3.12 kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: AWS SAM CLI kur
+        uses: aws-actions/setup-sam@v2
+
+      - name: AWS Kimlik Bilgilerini Yapılandır
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-north-1 # samconfig.toml dosyanızdaki bölge
+      
+      # === DEĞİŞİKLİK BURADA ===
+      # Robota, 'sam build' komutunu backend kodunun olduğu dizinde çalıştırmasını söylüyoruz
+      - name: SAM Build
+        run: sam build
+        working-directory: ./4_Kaynak_Kod/Backend/tasarimcibulutu_backend
+
+      # === DEĞİŞİKLİK BURADA ===
+      # Robota, 'sam deploy' komutunu da backend kodunun olduğu dizinde çalıştırmasını söylüyoruz
+      - name: SAM Deploy
+        run: sam deploy --no-confirm-changeset --no-fail-on-empty-changeset
+        working-directory: ./4_Kaynak_Kod/Backend/tasarimcibulutu_backend
