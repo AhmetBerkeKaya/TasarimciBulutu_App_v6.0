@@ -1,4 +1,4 @@
-// lib/core/services/api_service.dart
+// lib/core/services/api_service.dart (GÜNCELLENMİŞ HALİ)
 
 import 'dart:io';
 import 'package:dio/dio.dart';
@@ -164,11 +164,26 @@ class ApiService {
   // ========================================================================
 
 
-  Future<List<ShowcasePost>> getShowcasePosts({int page = 0, int limit = 20}) async {
+  // ========================================================================
+  // ===                     DEĞİŞİKLİK BURADA                            ===
+  // ========================================================================
+  Future<List<ShowcasePost>> getShowcasePosts({
+    int page = 0,
+    int limit = 20,
+    String? search // <-- 1. Arama parametresini (opsiyonel) ekledik
+  }) async {
     try {
+      // 2. Query parametrelerini bir haritaya çıkardık
+      final queryParameters = <String, dynamic>{
+        'skip': page * limit,
+        'limit': limit,
+        // 3. 'search' parametresini sadece null veya boş değilse ekliyoruz
+        if (search != null && search.isNotEmpty) 'search': search,
+      };
+
       final response = await _dio.get(
         '/showcase/posts',
-        queryParameters: {'skip': page * limit, 'limit': limit},
+        queryParameters: queryParameters, // 4. Güncellenmiş haritayı kullandık
       );
       return (response.data as List)
           .map((json) => ShowcasePost.fromJson(json))
@@ -178,6 +193,8 @@ class ApiService {
       return [];
     }
   }
+  // ========================================================================
+
 
   Future<PresignedUrlResponse?> getPresignedUploadUrl({
     required File file,

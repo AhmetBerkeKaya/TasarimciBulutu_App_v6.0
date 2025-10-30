@@ -1,8 +1,8 @@
-// lib/features/showcase/screens/showcase_feed_screen.dart
+// lib/features/showcase/screens/showcase_feed_screen.dart (GÜNCELLENMİŞ HALİ)
 
+import 'dart:async'; // <-- DEBOUNCER İÇİN EKLENDİ
 import 'package:flutter/material.dart';
 import 'package:badges/badges.dart' as badges;
-
 import 'package:provider/provider.dart';
 import '../../../core/providers/notification_provider.dart';
 import '../../../core/providers/showcase_provider.dart';
@@ -33,7 +33,14 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
   bool _showScrollToTop = false;
   bool _isRefreshing = false;
   bool _isSearchExpanded = false;
-  String _searchQuery = '';
+
+  // === DEĞİŞİKLİK BURADA (1/4) ===
+  // _searchQuery değişkenini kaldırdık, çünkü artık provider'da tutuluyor.
+  // String _searchQuery = ''; // <-- BU SATIRI SİLDİK
+
+  // Debouncer (geciktirici) için bir Timer ekledik
+  Timer? _debounce;
+  // ===============================
 
   @override
   void initState() {
@@ -43,27 +50,24 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
     _scrollController.addListener(_onScroll);
   }
 
+  // ... ( _initializeAnimations() fonksiyonu aynı, değişiklik yok) ...
   void _initializeAnimations() {
     _fabAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-
     _headerAnimationController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-
     _searchAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
-
     _fabAnimation = CurvedAnimation(
       parent: _fabAnimationController,
       curve: Curves.elasticOut,
     );
-
     _headerSlideAnimation = Tween<Offset>(
       begin: const Offset(0, -0.3),
       end: Offset.zero,
@@ -71,21 +75,27 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
       parent: _headerAnimationController,
       curve: Curves.easeOutCubic,
     ));
-
     _headerFadeAnimation = CurvedAnimation(
       parent: _headerAnimationController,
       curve: Curves.easeInOut,
     );
-
     _searchAnimation = CurvedAnimation(
       parent: _searchAnimationController,
       curve: Curves.easeInOutCubic,
     );
   }
+  // ==============================================================
+
 
   void _setupInitialData() {
     Future.microtask(() {
       final provider = Provider.of<ShowcaseProvider>(context, listen: false);
+
+      // === DEĞİŞİKLİK BURADA (2/4) ===
+      // Arama çubuğunu, provider'daki mevcut arama terimiyle senkronize et
+      _searchController.text = provider.searchQuery;
+      // ===============================
+
       if (provider.state == ShowcaseState.initial) {
         provider.fetchPosts();
       }
@@ -94,13 +104,12 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
     });
   }
 
+  // ... ( _onScroll() fonksiyonu aynı, değişiklik yok) ...
   void _onScroll() {
     final showButton = _scrollController.offset > 300;
     if (showButton != _showScrollToTop) {
       setState(() => _showScrollToTop = showButton);
     }
-
-    // Infinite scroll
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       final provider = Provider.of<ShowcaseProvider>(context, listen: false);
@@ -109,23 +118,29 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
       }
     }
   }
+  // =======================================================
+
 
   Future<void> _handleRefresh() async {
     if (_isRefreshing) return;
 
     setState(() => _isRefreshing = true);
 
-    // Add haptic feedback
-    await Future.wait([
-      Provider.of<ShowcaseProvider>(context, listen: false).fetchPosts(),
-      Future.delayed(const Duration(milliseconds: 500)), // Minimum duration for UX
-    ]);
+    // === DEĞİŞİKLİK BURADA (3/4) ===
+    // Yenileme yaptığımızda arama çubuğunu da temizleyelim
+    _searchController.clear();
+    // Arama sorgusunu provider'da temizle ve yeniden yükle
+    await Provider.of<ShowcaseProvider>(context, listen: false).searchPosts('');
+    // ===============================
+
+    await Future.delayed(const Duration(milliseconds: 500)); // Minimum duration for UX
 
     if (mounted) {
       setState(() => _isRefreshing = false);
     }
   }
 
+  // ... ( _scrollToTop() fonksiyonu aynı, değişiklik yok) ...
   void _scrollToTop() {
     _scrollController.animateTo(
       0,
@@ -133,27 +148,41 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
       curve: Curves.easeInOutQuart,
     );
   }
+  // ======================================================
 
   void _toggleSearch() {
     setState(() => _isSearchExpanded = !_isSearchExpanded);
 
     if (_isSearchExpanded) {
       _searchAnimationController.forward();
-      Future.delayed(const Duration(milliseconds: 100), () {
-        FocusScope.of(context).requestFocus(FocusNode());
+      // Odaklanmayı daha yumuşak hale getir
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if(mounted) FocusScope.of(context).requestFocus(FocusNode());
       });
     } else {
       _searchAnimationController.reverse();
       _searchController.clear();
-      setState(() => _searchQuery = '');
+      // === DEĞİŞİKLİK BURADA (4/4) ===
+      // Arama çubuğu kapandığında provider'ı da temizle ve yeniden yükle
+      Provider.of<ShowcaseProvider>(context, listen: false).searchPosts('');
+      // ===============================
       FocusScope.of(context).unfocus();
     }
   }
 
-  void _onSearchChanged(String value) {
-    setState(() => _searchQuery = value);
-    // TODO: Implement debounced search
+  // === DEĞİŞİKLİK BURADA (5/4) ===
+  // _onSearchChanged fonksiyonu artık provider'ı tetikliyor (debouncer ile)
+  void _onSearchChanged(String query) {
+    // Önceki gecikmeli aramayı iptal et
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+
+    // Kullanıcı yazmayı bıraktıktan 500ms sonra aramayı başlat
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      // Provider'daki arama fonksiyonunu çağır
+      Provider.of<ShowcaseProvider>(context, listen: false).searchPosts(query);
+    });
   }
+  // ===============================
 
   @override
   void dispose() {
@@ -163,11 +192,16 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
     _fabAnimationController.dispose();
     _headerAnimationController.dispose();
     _searchAnimationController.dispose();
+    _debounce?.cancel(); // <-- Debouncer'ı dispose et
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // ... (build fonksiyonunun geri kalanı aynı, değişiklik yok) ...
+    // Sadece _buildSearchBar içindeki _onSearchChanged artık
+    // debouncer'lı yeni fonksiyonumuzu kullanacak.
+
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -409,58 +443,62 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOutCubic,
         height: _isSearchExpanded ? 80 : 0,
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 24),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade200,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
-                blurRadius: 20,
-                offset: const Offset(0, 4),
+        child: SizeTransition( // <-- Daha yumuşak bir görünüm için SizeTransition
+          sizeFactor: _searchAnimation,
+          axisAlignment: -1.0,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade200,
               ),
-            ],
-          ),
-          child: TextField(
-            controller: _searchController,
-            onChanged: _onSearchChanged,
-            decoration: InputDecoration(
-              hintText: 'Proje, kullanıcı veya teknoloji ara...',
-              hintStyle: TextStyle(
-                color: isDark ? Colors.grey[400] : Colors.grey[500],
-                fontWeight: FontWeight.w400,
-              ),
-              prefixIcon: Icon(
-                Icons.search,
-                color: theme.primaryColor,
-                size: 24,
-              ),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                icon: Icon(
-                  Icons.clear,
-                  color: Colors.grey[400],
-                  size: 20,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, 4),
                 ),
-                onPressed: () {
-                  _searchController.clear();
-                  _onSearchChanged('');
-                },
-              )
-                  : null,
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 16,
-              ),
+              ],
             ),
-            style: TextStyle(
-              color: isDark ? Colors.white : Colors.black87,
-              fontWeight: FontWeight.w500,
+            child: TextField(
+              controller: _searchController,
+              onChanged: _onSearchChanged, // <-- Artık debouncer'lı fonksiyonu çağırıyor
+              decoration: InputDecoration(
+                hintText: 'Proje, kullanıcı veya teknoloji ara...',
+                hintStyle: TextStyle(
+                  color: isDark ? Colors.grey[400] : Colors.grey[500],
+                  fontWeight: FontWeight.w400,
+                ),
+                prefixIcon: Icon(
+                  Icons.search,
+                  color: theme.primaryColor,
+                  size: 24,
+                ),
+                suffixIcon: _searchController.text.isNotEmpty // <-- _searchQuery yerine controller'ı dinle
+                    ? IconButton(
+                  icon: Icon(
+                    Icons.clear,
+                    color: Colors.grey[400],
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    _searchController.clear();
+                    _onSearchChanged(''); // <-- Provider'ı temizle
+                  },
+                )
+                    : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
+              ),
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black87,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ),
@@ -485,16 +523,96 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
 
           case ShowcaseState.loaded:
           case ShowcaseState.loadingMore:
+          // === DEĞİŞİKLİK BURADA ===
+          // Arama sonucu boşsa, farklı bir "Boş Durum" göster
             if (provider.posts.isEmpty) {
+              if (provider.searchQuery.isNotEmpty) {
+                return SliverFillRemaining(
+                  child: _buildEmptySearchState(provider), // <-- Arama için yeni boş durum
+                );
+              }
               return SliverFillRemaining(
-                child: _buildEmptyState(provider),
+                child: _buildEmptyState(provider), // <-- Normal boş durum
               );
             }
+            // =========================
             return _buildPostsList(provider);
         }
       },
     );
   }
+
+  // === YENİ WIDGET (6/4) ===
+  // Arama sonucu boş geldiğinde gösterilecek widget
+  Widget _buildEmptySearchState(ShowcaseProvider provider) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: theme.primaryColor.withOpacity(0.08),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: theme.primaryColor.withOpacity(0.2),
+                  width: 2,
+                ),
+              ),
+              child: Icon(
+                Icons.search_off_rounded,
+                size: 64,
+                color: theme.primaryColor,
+              ),
+            ),
+            const SizedBox(height: 32),
+            Text(
+              'Sonuç Bulunamadı',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: isDark ? Colors.white : Colors.grey[800],
+              ),
+            ),
+            const SizedBox(height: 12),
+            RichText(
+              textAlign: TextAlign.center,
+              text: TextSpan(
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  color: Colors.grey[600],
+                  height: 1.5,
+                ),
+                children: [
+                  const TextSpan(text: 'Aradığınız terimle ('),
+                  TextSpan(
+                    text: '"${provider.searchQuery}"',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: theme.primaryColor),
+                  ),
+                  const TextSpan(text: ') eşleşen bir proje bulunamadı.'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 40),
+            _buildModernButton(
+              onPressed: () {
+                _searchController.clear();
+                provider.searchPosts('');
+              },
+              icon: Icons.clear_all_rounded,
+              label: 'Aramayı Temizle',
+              isPrimary: true,
+              theme: theme,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  // =========================
 
   Widget _buildLoadingState() {
     return Center(

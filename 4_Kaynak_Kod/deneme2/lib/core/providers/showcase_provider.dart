@@ -1,4 +1,4 @@
-// lib/core/providers/showcase_provider.dart
+// lib/core/providers/showcase_provider.dart (GÜNCELLENMİŞ HALİ)
 
 import 'dart:io';
 import 'package:archive/archive_io.dart'; // ZIP için gerekli
@@ -21,11 +21,16 @@ class ShowcaseProvider with ChangeNotifier {
   bool _hasMorePosts = true;
   bool _isCreatingPost = false;
 
+  // === DEĞİŞİKLİK BURADA (1/4) ===
+  String _searchQuery = ''; // Arama terimini saklamak için yeni değişken
+  // ===============================
+
   List<ShowcasePost> get posts => _posts;
   ShowcaseState get state => _state;
   String? get errorMessage => _errorMessage;
   bool get hasMorePosts => _hasMorePosts;
   bool get isCreatingPost => _isCreatingPost;
+  String get searchQuery => _searchQuery; // Arayüzün okuyabilmesi için getter
 
   void updateToken(String? token) {
     if (token != null && _state == ShowcaseState.initial) {
@@ -33,6 +38,7 @@ class ShowcaseProvider with ChangeNotifier {
     }
   }
 
+  // ... (createPost ve _createZipFromFile fonksiyonları aynı, değişiklik yok) ...
   Future<bool> createPost({
     required String title,
     String? description,
@@ -44,55 +50,35 @@ class ShowcaseProvider with ChangeNotifier {
 
     try {
       File zipFile;
-
-      // Desteklediğimiz tüm 3D model formatlarının listesi
       const supported3DModelExtensions = [
         '.obj', '.stl', '.step', '.stp', '.iges', '.igs', '.fbx', '.x_t', '.x_b',
         '.gltf', '.glb', '.3ds', '.x3d', '.sldprt', '.sldasm', '.ipt', '.iam',
         '.rvt', '.catpart', '.catproduct', '.cgr', '.prt', '.asm'
       ];
-
       final fileExtension = path.extension(fileToUpload.path).toLowerCase();
-
-      // Eğer seçilen dosya, desteklediğimiz 3D formatlardan biriyse, ZIP'le
       if (supported3DModelExtensions.contains(fileExtension)) {
-        print("🔍 Adım 0: Desteklenen 3D model algılandı ($fileExtension), ZIP'e paketleniyor...");
         zipFile = await _createZipFromFile(fileToUpload, 'model$fileExtension');
-        print("✅ Adım 0 Başarılı: ZIP dosyası oluşturuldu -> ${zipFile.path}");
       } else {
-        // Eğer dosya bir resim veya başka bir türse, olduğu gibi kullan.
-        // Bu, gelecekte farklı dosya türleri eklememizi sağlar.
         zipFile = fileToUpload;
       }
-
-      print("🔍 Adım 1: Gönderi oluşturma süreci başlatılıyor...");
       final initResponse = await _apiService.initializePostUpload(
         title: title,
         description: description,
         originalFilename: path.basename(zipFile.path),
       );
-
       if (initResponse == null) {
         throw Exception("Backend'den yükleme linki alınamadı.");
       }
-      print("✅ Adım 1 Başarılı: Yükleme linki alındı. Post ID: ${initResponse.postId}");
-
-      print("🔍 Adım 2: ZIP dosyası S3'e yükleniyor...");
       final uploadSuccess = await _apiService.uploadFileToS3(
         presignedData: initResponse.uploadData,
         file: zipFile,
       );
-
       if (!uploadSuccess) {
         throw Exception("Dosya S3'e yüklenemedi.");
       }
-      print("✅ Adım 2 Başarılı: Dosya S3'e yüklendi. Backend şimdi işlemeye başlayacak.");
-
       await fetchPosts();
       return true;
-
     } catch (e) {
-      print("❌ HATA: createPost sürecinde bir sorun oluştu -> ${e.toString()}");
       _errorMessage = "Gönderi oluşturulurken bir hata oluştu: ${e.toString().replaceAll("Exception: ", "")}";
       return false;
     } finally {
@@ -100,8 +86,6 @@ class ShowcaseProvider with ChangeNotifier {
       notifyListeners();
     }
   }
-
-  // Fonksiyonu daha genel hale getiriyoruz.
   Future<File> _createZipFromFile(File sourceFile, String fileNameInZip) async {
     final bytes = await sourceFile.readAsBytes();
     final archive = Archive();
@@ -110,14 +94,17 @@ class ShowcaseProvider with ChangeNotifier {
     final zipEncoder = ZipEncoder();
     final zipData = zipEncoder.encode(archive);
     if (zipData == null) throw Exception('ZIP verisi oluşturulamadı.');
-
     final tempDir = Directory.systemTemp;
     final zipFileName = '${path.basenameWithoutExtension(sourceFile.path)}.zip';
     final zipFile = File(path.join(tempDir.path, zipFileName));
     await zipFile.writeAsBytes(zipData);
     return zipFile;
   }
+  // ==============================================================
 
+
+  // === DEĞİŞİKLİK BURADA (2/4) ===
+  // fetchPosts fonksiyonu artık arama terimini de kullanıyor
   Future<void> fetchPosts() async {
     if (_state == ShowcaseState.loading) return;
     _state = ShowcaseState.loading;
@@ -125,7 +112,12 @@ class ShowcaseProvider with ChangeNotifier {
 
     try {
       _currentPage = 0;
-      final newPosts = await _apiService.getShowcasePosts(page: _currentPage, limit: _pageSize);
+      // 'search' parametresini ApiService'e iletiyoruz
+      final newPosts = await _apiService.getShowcasePosts(
+          page: _currentPage,
+          limit: _pageSize,
+          search: _searchQuery // <-- Arama terimini burada kullan
+      );
       _posts = newPosts;
       _hasMorePosts = newPosts.length == _pageSize;
       _state = ShowcaseState.loaded;
@@ -136,16 +128,24 @@ class ShowcaseProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+  // ===============================
 
+
+  // === DEĞİŞİKLİK BURADA (3/4) ===
+  // fetchMorePosts fonksiyonu da artık arama terimini kullanıyor
   Future<void> fetchMorePosts() async {
-    // ... içerik aynı
     if (_state == ShowcaseState.loadingMore || !_hasMorePosts) return;
     _state = ShowcaseState.loadingMore;
     notifyListeners();
 
     try {
       _currentPage++;
-      final newPosts = await _apiService.getShowcasePosts(page: _currentPage, limit: _pageSize);
+      // 'search' parametresini ApiService'e iletiyoruz
+      final newPosts = await _apiService.getShowcasePosts(
+          page: _currentPage,
+          limit: _pageSize,
+          search: _searchQuery // <-- Arama terimini burada kullan
+      );
       if (newPosts.length < _pageSize) {
         _hasMorePosts = false;
       }
@@ -158,39 +158,50 @@ class ShowcaseProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+  // ===============================
 
-  // ... (Geri kalan tüm fonksiyonlar aynı)
+
+  // === DEĞİŞİKLİK BURADA (4/4) ===
+  // Arayüzden (UI) arama işlemini tetiklemek için yeni bir fonksiyon
+  Future<void> searchPosts(String query) async {
+    // Yeni arama terimini sakla
+    _searchQuery = query;
+    // Arama yaparken mevcut listeyi temizle ve durumu 'loading' yap
+    _posts = [];
+    _hasMorePosts = true;
+    _currentPage = 0;
+
+    // fetchPosts() fonksiyonu zaten _searchQuery'yi kullanacak şekilde
+    // güncellendiği için, onu çağırmamız yeterli.
+    await fetchPosts();
+  }
+  // ===============================
+
+  // ... (Geri kalan tüm fonksiyonlar (deletePost, toggleLike, addComment vb.) aynı) ...
   Future<bool> deletePost(String postId) async {
     final postIndex = _posts.indexWhere((p) => p.id == postId);
     if (postIndex == -1) return false;
-
     final postToRemove = _posts.removeAt(postIndex);
     notifyListeners();
-
     final success = await _apiService.deleteShowcasePost(postId: postId);
-
     if (!success) {
       _posts.insert(postIndex, postToRemove);
       _errorMessage = "Gönderi silinemedi. Lütfen tekrar deneyin.";
       notifyListeners();
     }
-
     return success;
   }
   Future<void> toggleLike(String postId, String currentUserId) async {
     final postIndex = _posts.indexWhere((p) => p.id == postId);
     if (postIndex == -1) return;
-
     final post = _posts[postIndex];
     final isLiked = post.likes.any((like) => like.userId == currentUserId);
-
     if (isLiked) {
       post.likes.removeWhere((like) => like.userId == currentUserId);
     } else {
       post.likes.add(PostLike(userId: currentUserId, postId: postId));
     }
     notifyListeners();
-
     try {
       if (isLiked) {
         await _apiService.unlikePost(postId: postId);
@@ -246,19 +257,15 @@ class ShowcaseProvider with ChangeNotifier {
   Future<void> toggleCommentLike(String postId, String commentId, String currentUserId) async {
     final postIndex = _posts.indexWhere((p) => p.id == postId);
     if (postIndex == -1) return;
-
     Comment? targetComment = findComment(_posts[postIndex].comments, commentId);
     if (targetComment == null) return;
-
     final isLiked = targetComment.likes.any((like) => like.userId == currentUserId);
-
     if (isLiked) {
       targetComment.likes.removeWhere((like) => like.userId == currentUserId);
     } else {
       targetComment.likes.add(CommentLike(userId: currentUserId, commentId: commentId));
     }
     notifyListeners();
-
     try {
       if (isLiked) {
         await _apiService.unlikeComment(commentId: commentId);

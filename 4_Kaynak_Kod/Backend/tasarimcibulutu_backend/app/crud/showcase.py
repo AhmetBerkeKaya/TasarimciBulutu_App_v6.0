@@ -1,5 +1,5 @@
 # app/crud/showcase.py (GÜNCELLENMİŞ HALİ)
-
+from typing import Optional
 import logging # <-- EKLENDİ
 from sqlalchemy.orm import Session, joinedload # <-- joinedload EKLENDİ
 from app import models, schemas
@@ -8,7 +8,7 @@ from app.models.showcase import ProcessingStatus
 from . import audit as audit_crud
 from app import models, schemas, crud
 from app.models.notification import NotificationType
-
+from sqlalchemy import or_
 # === YENİ LOGGER ===
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO) # Bu modül için de INFO seviyesini ayarlıyoruz
@@ -53,8 +53,23 @@ def create_showcase_post(db: Session, post: schemas.showcase.ShowcasePostCreate 
 def get_showcase_post(db: Session, post_id: uuid.UUID) -> models.showcase.ShowcasePost | None:
     return db.query(models.showcase.ShowcasePost).filter(models.showcase.ShowcasePost.id == post_id).first()
 
-def get_all_showcase_posts(db: Session, skip: int = 0, limit: int = 100) -> list[models.showcase.ShowcasePost]:
-    return db.query(models.showcase.ShowcasePost).order_by(models.showcase.ShowcasePost.created_at.desc()).offset(skip).limit(limit).all()
+def get_all_showcase_posts(db: Session, skip: int = 0, limit: int = 100, search: Optional[str] = None) -> list[models.showcase.ShowcasePost]:
+    logger.info(f"Vitrin gönderileri listeleniyor: Skip={skip}, Limit={limit}, Search='{search}'") # <-- Loglamayı da güncelleyelim
+    
+    query = db.query(models.showcase.ShowcasePost).order_by(models.showcase.ShowcasePost.created_at.desc())
+    
+    # === YENİ ARAMA MANTIĞI ===
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            or_(
+                models.showcase.ShowcasePost.title.ilike(search_term),
+                models.showcase.ShowcasePost.description.ilike(search_term)
+            )
+        )
+    # ==========================
+        
+    return query.offset(skip).limit(limit).all()
 
 def delete_showcase_post(db: Session, post_id: uuid.UUID, user_id: uuid.UUID) -> models.showcase.ShowcasePost | None:
     logger.info(f"Vitrin gönderisi siliniyor: ID={post_id}, KullanıcıID={user_id}") # <-- EKLENDİ

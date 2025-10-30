@@ -1,11 +1,11 @@
 # =======================================================================
-# DOSYA 2: app/routers/showcase.py (Rate Limiting İyileştirildi)
+# DOSYA 2: app/routers/showcase.py (GÜNCELLENMİŞ HALİ)
 # =======================================================================
 import uuid
 import os
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional # <-- 'Optional' EKLENDİ
 
 from app import crud, schemas, models
 from app.dependencies import get_db, get_current_user
@@ -23,10 +23,11 @@ router = APIRouter(
 
 ALLOWED_FILE_EXTENSIONS = {".zip"}
 
+# ... (initialize_post_upload fonksiyonu aynı, değişiklik yok) ...
 @router.post("/posts/initialize-upload", response_model=schemas.showcase.ShowcasePostInitResponse)
-@limiter.limit("20/hour") # YENİ: Spam gönderi oluşturma denemelerini engeller
+@limiter.limit("20/hour")
 def initialize_post_upload(
-    request: Request, # <-- Limiter için request parametresi eklendi
+    request: Request,
     post_init_data: schemas.showcase.ShowcasePostInit,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
@@ -60,7 +61,7 @@ def initialize_post_upload(
         upload_data=schemas.showcase.PresignedUrlData(**upload_data)
     )
 
-# ... (dosyanın geri kalanı aynı, zaten limitleri vardı) ...
+# ... (create_post fonksiyonu aynı, değişiklik yok) ...
 @router.post("/posts", response_model=schemas.showcase.ShowcasePost, status_code=status.HTTP_201_CREATED)
 @limiter.limit("20/hour")
 def create_post(
@@ -71,11 +72,24 @@ def create_post(
 ):
     return crud.showcase.create_showcase_post(db=db, post=post, user_id=current_user.id)
 
+# ========================================================================
+# ===                     DEĞİŞİKLİK BURADA                            ===
+# ========================================================================
 @router.get("/posts", response_model=List[schemas.showcase.ShowcasePost])
 @limiter.limit("60/minute")
-def read_all_posts(request: Request, skip: int = 0, limit: int = 20, db: Session = Depends(get_db)):
-    return crud.showcase.get_all_showcase_posts(db=db, skip=skip, limit=limit)
+def read_all_posts(
+    request: Request, 
+    skip: int = 0, 
+    limit: int = 20, 
+    search: Optional[str] = None, # <-- 1. Arama parametresini (opsiyonel) ekledik
+    db: Session = Depends(get_db)
+):
+    # 2. 'search' parametresini CRUD katmanına iletiyoruz
+    return crud.showcase.get_all_showcase_posts(db=db, skip=skip, limit=limit, search=search)
+# ========================================================================
 
+
+# ... (read_post fonksiyonu aynı, değişiklik yok) ...
 @router.get("/posts/{post_id}", response_model=schemas.showcase.ShowcasePost)
 @limiter.limit("120/minute")
 def read_post(request: Request, post_id: uuid.UUID, db: Session = Depends(get_db)):
@@ -83,6 +97,7 @@ def read_post(request: Request, post_id: uuid.UUID, db: Session = Depends(get_db
     if not db_post: raise HTTPException(status_code=404, detail="Post not found")
     return db_post
 
+# ... (delete_post fonksiyonu aynı, değişiklik yok) ...
 @router.delete("/posts/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("10/hour")
 def delete_post(request: Request, post_id: uuid.UUID, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -91,6 +106,7 @@ def delete_post(request: Request, post_id: uuid.UUID, db: Session = Depends(get_
         raise HTTPException(status_code=403, detail="Post not found or you don't have permission to delete it")
     return
 
+# ... (like_a_post fonksiyonu aynı, değişiklik yok) ...
 @router.post("/posts/{post_id}/like", response_model=schemas.showcase.PostLike, status_code=status.HTTP_201_CREATED)
 @limiter.limit("100/minute")
 def like_a_post(request: Request, post_id: uuid.UUID, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -99,6 +115,7 @@ def like_a_post(request: Request, post_id: uuid.UUID, db: Session = Depends(get_
         raise HTTPException(status_code=404, detail="Post not found")
     return like
 
+# ... (unlike_a_post fonksiyonu aynı, değişiklik yok) ...
 @router.delete("/posts/{post_id}/like", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("100/minute")
 def unlike_a_post(request: Request, post_id: uuid.UUID, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -107,6 +124,7 @@ def unlike_a_post(request: Request, post_id: uuid.UUID, db: Session = Depends(ge
         raise HTTPException(status_code=404, detail="Like not found")
     return
 
+# ... (create_a_comment fonksiyonu aynı, değişiklik yok) ...
 @router.post("/posts/{post_id}/comments", response_model=schemas.showcase.Comment, status_code=status.HTTP_201_CREATED)
 @limiter.limit("30/hour")
 def create_a_comment(
@@ -123,6 +141,7 @@ def create_a_comment(
     )
     return crud.showcase.create_comment(db, comment=comment_create_schema, user_id=current_user.id)
 
+# ... (delete_a_comment fonksiyonu aynı, değişiklik yok) ...
 @router.delete("/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("20/hour")
 def delete_a_comment(request: Request, comment_id: uuid.UUID, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
@@ -131,6 +150,7 @@ def delete_a_comment(request: Request, comment_id: uuid.UUID, db: Session = Depe
         raise HTTPException(status_code=403, detail="Comment not found or you don't have permission to delete it")
     return
 
+# ... (like_a_comment fonksiyonu aynı, değişiklik yok) ...
 @router.post("/comments/{comment_id}/like", response_model=schemas.showcase.CommentLike, status_code=status.HTTP_201_CREATED)
 @limiter.limit("100/minute")
 def like_a_comment(
@@ -144,6 +164,7 @@ def like_a_comment(
         raise HTTPException(status_code=404, detail="Comment not found")
     return like
 
+# ... (unlike_a_comment fonksiyonu aynı, değişiklik yok) ...
 @router.delete("/comments/{comment_id}/like", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("100/minute")
 def unlike_a_comment(
