@@ -11,7 +11,14 @@ class DioClient {
 
   final Dio _dio = Dio(
     BaseOptions(
-      baseUrl: "https://8bvn2qklf5.execute-api.eu-north-1.amazonaws.com/Prod",
+      // --- ESKİ (AWS) ADRESİ SİL ---
+      // baseUrl: "https://8bvn2qklf5.execute-api.eu-north-1.amazonaws.com/Prod",
+
+      // --- YENİ (YEREL) ADRESİ EKLE ---
+      // Android Emülatör için 10.0.2.2:8000 kullanılır.
+      // HTTP olduğuna dikkat et (s harfi yok), çünkü yerelde SSL sertifikamız yok.
+      baseUrl: "http://10.0.2.2:8000",
+
       connectTimeout: const Duration(seconds: 60),
       receiveTimeout: const Duration(seconds: 60),
       responseType: ResponseType.json,

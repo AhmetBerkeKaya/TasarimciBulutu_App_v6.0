@@ -7,8 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response, UploadF
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
-
-# YENİ EKLENEN IMPORT'LAR: S3 için şemaları ve yardımcı fonksiyonları ekliyoruz
+from app.config import settings# YENİ EKLENEN IMPORT'LAR: S3 için şemaları ve yardımcı fonksiyonları ekliyoruz
 from app.schemas import s3 as s3_schemas
 from app.utils import s3 as s3_utils
 # ================================================================
@@ -47,22 +46,35 @@ def create_picture_upload_url(
         ["starts-with", "$Content-Type", "image/"]
     ]
 
-    # app/utils/s3.py dosyanızdaki fonksiyonu çağırıyoruz.
     response = s3_utils.create_presigned_post_url(
-        bucket_name="tasarimcibulutu-showcase-files-ahmet", # Bu değeri .env dosyanızdan almak daha iyidir.
+        bucket_name="tasarimcibulutu", # Cloudinary'de klasör ismi olarak kullanılabilir ama kodumuzda şu an kullanmadık, sorun yok.
         object_name=object_name,
+        # fields ve conditions parametreleri Cloudinary implementasyonunda kullanılmıyor ama hata vermemesi için kalsın.
         fields=fields,
-        conditions=conditions,
-        expires_in=600 # URL 10 dakika geçerli olacak
+        conditions=conditions
     )
     
     if response is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not create upload URL.")
 
+    # Cloudinary'den dönen tam URL'i (https://res.cloudinary...) veritabanına kaydetmek istiyoruz.
+    # Bu yüzden 'file_path' alanına, erişilebilir tam URL'i koyuyoruz.
+    
+    # s3.py içinde URL'i hesaplamıştık, onu buradan döndürelim.
+    # Ama s3.py şu an dict dönüyor. Orayı biraz daha akıllıca yapalım.
+    
+    # HIZLI ÇÖZÜM: URL'i burada manuel oluşturup dönelim.
+    cloud_name = settings.CLOUDINARY_CLOUD_NAME    # Uzantıyı ayırıp public_id alıyoruz
+    public_id = object_name.rsplit('.', 1)[0] 
+    extension = object_name.split('.')[-1]
+    full_image_url = f"https://res.cloudinary.com/{cloud_name}/image/upload/{public_id}.{extension}"
+
     return {
         "url": response["url"],
         "fields": response["fields"],
-        "file_path": object_name
+        # DİKKAT: Burayı object_name değil, full_image_url yapıyoruz.
+        # Böylece Frontend bunu alıp 'updateUserProfile' dediğinde veritabanına çalışan link yazılacak.
+        "file_path": full_image_url 
     }
 # ===============================================================================
 # ===                         YENİ ENDPOINT BİTTİ                           ===

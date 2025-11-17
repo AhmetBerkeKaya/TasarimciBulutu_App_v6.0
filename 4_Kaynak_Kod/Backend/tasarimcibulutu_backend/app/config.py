@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     MAIL_STARTTLS: bool = True
     MAIL_SSL_TLS: bool = False
 
+    # --- YENİ CLOUDINARY AYARLARI (EKLENDİ) ---
+    CLOUDINARY_CLOUD_NAME: str
+    CLOUDINARY_API_KEY: str
+    CLOUDINARY_API_SECRET: str
+    
     # AWS S3 AYARLARI
     AWS_ACCESS_KEY_ID: str
     AWS_SECRET_ACCESS_KEY: str

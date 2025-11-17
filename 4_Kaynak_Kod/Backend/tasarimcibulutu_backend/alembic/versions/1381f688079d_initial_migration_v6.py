@@ -1,18 +1,19 @@
-"""Initial database schema
+"""initial_migration_v6
 
-Revision ID: 0bfc1c54b6ac
+Revision ID: 1381f688079d
 Revises: 
-Create Date: 2025-08-04 05:08:18.181724
+Create Date: 2025-11-17 20:05:17.530165
 
 """
 from typing import Sequence, Union
-import app
+
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+import app.models.user
+from sqlalchemy import Column, Text, JSON
 
 # revision identifiers, used by Alembic.
-revision: str = '0bfc1c54b6ac'
+revision: str = '1381f688079d'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -60,7 +61,7 @@ def upgrade() -> None:
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('actor_id', sa.UUID(), nullable=True),
     sa.Column('action', sa.String(length=100), nullable=False),
-    sa.Column('details', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+    sa.Column('details', app.database.JSONB_or_JSON(astext_type=Text()), nullable=True),
     sa.Column('timestamp', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['actor_id'], ['users.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
@@ -86,12 +87,17 @@ def upgrade() -> None:
     op.create_table('notifications',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('user_id', sa.UUID(), nullable=False),
-    sa.Column('message', sa.Text(), nullable=False),
-    sa.Column('is_read', sa.Boolean(), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), nullable=True),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.Column('actor_id', sa.UUID(), nullable=True),
+    sa.Column('type', sa.Enum('NEW_MESSAGE', 'APPLICATION_SUBMITTED', 'APPLICATION_ACCEPTED', 'APPLICATION_REJECTED', 'PROJECT_DELIVERED', 'DELIVERY_ACCEPTED', 'REVISION_REQUESTED', 'PROJECT_COMPLETED', 'PROJECT_CANCELLED', 'NEW_REVIEW', 'POST_LIKED', 'POST_COMMENTED', 'COMMENT_LIKED', 'COMMENT_REPLIED', 'WELCOME', 'SKILL_TEST_RESULT', 'NEW_PROJECT_RECOMMENDATION', name='notification_type_enum'), nullable=False),
+    sa.Column('content', sa.Text(), nullable=False),
+    sa.Column('is_read', sa.Boolean(), nullable=False),
+    sa.Column('related_entity_id', sa.UUID(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['actor_id'], ['users.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index(op.f('ix_notifications_user_id'), 'notifications', ['user_id'], unique=False)
     op.create_table('portfolio_items',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('user_id', sa.UUID(), nullable=False),
@@ -130,6 +136,7 @@ def upgrade() -> None:
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('title', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('category', sa.String(length=100), nullable=True),
     sa.Column('file_url', sa.String(), nullable=True),
     sa.Column('thumbnail_url', sa.String(), nullable=True),
     sa.Column('model_url', sa.String(), nullable=True),
@@ -141,6 +148,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index(op.f('ix_showcase_posts_category'), 'showcase_posts', ['category'], unique=False)
     op.create_index(op.f('ix_showcase_posts_user_id'), 'showcase_posts', ['user_id'], unique=False)
     op.create_table('test_results',
     sa.Column('id', sa.UUID(), nullable=False),
@@ -194,6 +202,13 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_choices_id'), 'choices', ['id'], unique=False)
+    op.create_table('portfolio_item_skills',
+    sa.Column('portfolio_item_id', sa.UUID(), nullable=False),
+    sa.Column('skill_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['portfolio_item_id'], ['portfolio_items.id'], ),
+    sa.ForeignKeyConstraint(['skill_id'], ['skills.id'], ),
+    sa.PrimaryKeyConstraint('portfolio_item_id', 'skill_id')
+    )
     op.create_table('post_comments',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('user_id', sa.UUID(), nullable=False),
@@ -217,6 +232,24 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('user_id', 'post_id')
     )
+    op.create_table('project_recommendations',
+    sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('user_id', sa.UUID(), nullable=False),
+    sa.Column('project_id', sa.UUID(), nullable=False),
+    sa.Column('score', sa.Numeric(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=True),
+    sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_project_recommendations_user_id'), 'project_recommendations', ['user_id'], unique=False)
+    op.create_table('project_required_skills',
+    sa.Column('project_id', sa.UUID(), nullable=False),
+    sa.Column('skill_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['project_id'], ['projects.id'], ),
+    sa.ForeignKeyConstraint(['skill_id'], ['skills.id'], ),
+    sa.PrimaryKeyConstraint('project_id', 'skill_id')
+    )
     op.create_table('reviews',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('project_id', sa.UUID(), nullable=False),
@@ -229,6 +262,13 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['reviewee_id'], ['users.id'], ),
     sa.ForeignKeyConstraint(['reviewer_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('showcase_skills',
+    sa.Column('showcase_post_id', sa.UUID(), nullable=False),
+    sa.Column('skill_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['showcase_post_id'], ['showcase_posts.id'], ),
+    sa.ForeignKeyConstraint(['skill_id'], ['skills.id'], ),
+    sa.PrimaryKeyConstraint('showcase_post_id', 'skill_id')
     )
     op.create_table('comment_likes',
     sa.Column('user_id', sa.UUID(), nullable=False),
@@ -245,11 +285,16 @@ def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_table('comment_likes')
+    op.drop_table('showcase_skills')
     op.drop_table('reviews')
+    op.drop_table('project_required_skills')
+    op.drop_index(op.f('ix_project_recommendations_user_id'), table_name='project_recommendations')
+    op.drop_table('project_recommendations')
     op.drop_table('post_likes')
     op.drop_index(op.f('ix_post_comments_user_id'), table_name='post_comments')
     op.drop_index(op.f('ix_post_comments_post_id'), table_name='post_comments')
     op.drop_table('post_comments')
+    op.drop_table('portfolio_item_skills')
     op.drop_index(op.f('ix_choices_id'), table_name='choices')
     op.drop_table('choices')
     op.drop_table('applications')
@@ -257,11 +302,13 @@ def downgrade() -> None:
     op.drop_table('user_skills')
     op.drop_table('test_results')
     op.drop_index(op.f('ix_showcase_posts_user_id'), table_name='showcase_posts')
+    op.drop_index(op.f('ix_showcase_posts_category'), table_name='showcase_posts')
     op.drop_table('showcase_posts')
     op.drop_index(op.f('ix_questions_id'), table_name='questions')
     op.drop_table('questions')
     op.drop_table('projects')
     op.drop_table('portfolio_items')
+    op.drop_index(op.f('ix_notifications_user_id'), table_name='notifications')
     op.drop_table('notifications')
     op.drop_table('messages')
     op.drop_index(op.f('ix_audit_logs_user_id'), table_name='audit_logs')
