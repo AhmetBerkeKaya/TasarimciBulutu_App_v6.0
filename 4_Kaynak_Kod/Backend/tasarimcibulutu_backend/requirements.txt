@@ -47,3 +47,4 @@ python-multipart
 # YENİ EKLENDİ: FastAPI'yi Lambda'ya uyarlamak için:
 mangum
 fastapi-mail==1.4.1
+supabase==2.10.0

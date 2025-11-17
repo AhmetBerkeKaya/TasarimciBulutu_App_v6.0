@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     CLOUDINARY_API_KEY: str
     CLOUDINARY_API_SECRET: str
     
+    # API BASE URL (Frontend için proxy URL oluşturulurken kullanılıyor)
+    SUPABASE_URL: str
+    SUPABASE_KEY: str
+    API_BASE_URL: str = "http://10.0.2.2:8000"
     # AWS S3 AYARLARI
     AWS_ACCESS_KEY_ID: str
     AWS_SECRET_ACCESS_KEY: str
