@@ -204,7 +204,7 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
 
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-
+    final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0A0A0A) : const Color(0xFFFAFAFA),
       body: RefreshIndicator(
@@ -224,7 +224,7 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
           ],
         ),
       ),
-      floatingActionButton: _buildFloatingActionButtons(theme, isDark),
+      floatingActionButton: isKeyboardVisible ? null : _buildFloatingActionButtons(theme, isDark),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
@@ -523,19 +523,23 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
 
           case ShowcaseState.loaded:
           case ShowcaseState.loadingMore:
-          // === DEĞİŞİKLİK BURADA ===
-          // Arama sonucu boşsa, farklı bir "Boş Durum" göster
             if (provider.posts.isEmpty) {
-              if (provider.searchQuery.isNotEmpty) {
-                return SliverFillRemaining(
-                  child: _buildEmptySearchState(provider), // <-- Arama için yeni boş durum
-                );
-              }
-              return SliverFillRemaining(
-                child: _buildEmptyState(provider), // <-- Normal boş durum
+
+              // === DEĞİŞİKLİK BURADA ===
+              // SliverFillRemaining yerine SliverToBoxAdapter kullanarak
+              // içeriği ekranın üstüne sabitliyoruz. Bu, hem piksel
+              // taşmasını hem de FAB çakışmasını çözer.
+              return SliverToBoxAdapter(
+                child: Padding(
+                  // Ekranın üstünden biraz boşluk bırakıyoruz
+                  padding: const EdgeInsets.only(top: 64.0, bottom: 200.0),
+                  child: provider.searchQuery.isNotEmpty
+                      ? _buildEmptySearchState(provider) // Arama boş durumu
+                      : _buildEmptyState(provider),      // Normal boş durum
+                ),
               );
+              // =========================
             }
-            // =========================
             return _buildPostsList(provider);
         }
       },
@@ -550,27 +554,10 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.fromLTRB(32, 0, 32, 0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: theme.primaryColor.withOpacity(0.08),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: theme.primaryColor.withOpacity(0.2),
-                  width: 2,
-                ),
-              ),
-              child: Icon(
-                Icons.search_off_rounded,
-                size: 64,
-                color: theme.primaryColor,
-              ),
-            ),
-            const SizedBox(height: 32),
             Text(
               'Sonuç Bulunamadı',
               style: theme.textTheme.headlineSmall?.copyWith(
@@ -578,7 +565,7 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
                 color: isDark ? Colors.white : Colors.grey[800],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             RichText(
               textAlign: TextAlign.center,
               text: TextSpan(
@@ -596,7 +583,7 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
                 ],
               ),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 8),
             _buildModernButton(
               onPressed: () {
                 _searchController.clear();
@@ -655,7 +642,7 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
   Widget _buildErrorState(ShowcaseProvider provider) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-
+    final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
