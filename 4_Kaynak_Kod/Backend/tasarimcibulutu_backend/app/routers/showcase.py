@@ -131,9 +131,17 @@ def read_all_posts(
     skip: int = 0, 
     limit: int = 20, 
     search: Optional[str] = None,
+    sort_by: Optional[str] = 'newest', # <-- YENİ PARAMETRE
     db: Session = Depends(get_db)
 ):
-    return crud.showcase.get_all_showcase_posts(db=db, skip=skip, limit=limit, search=search)
+    # CRUD fonksiyonuna tüm parametreleri iletiyoruz
+    return crud.showcase.get_all_showcase_posts(
+        db=db, 
+        skip=skip, 
+        limit=limit, 
+        search=search,
+        sort_by=sort_by
+    )
 
 # =======================================================================
 # 4. READ SINGLE POST

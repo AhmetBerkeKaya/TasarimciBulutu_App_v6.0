@@ -1,4 +1,4 @@
-// lib/features/project/widgets/project_card.dart (KOMPAKT VE AKSİYON ODAKLI)
+// lib/features/project/widgets/project_card.dart (DÜZELTİLMİŞ)
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -37,8 +37,6 @@ class ProjectCard extends StatelessWidget {
       budgetText = 'Teklife Açık';
     }
 
-    // Yetenekleri özetlemek için metin oluştur
-    // Örn: "AutoCAD, Revit +3 diğer"
     String skillsSummary = "";
     if (project.requiredSkills.isNotEmpty) {
       final firstTwo = project.requiredSkills.take(2).map((s) => s.name).join(", ");
@@ -51,7 +49,7 @@ class ProjectCard extends StatelessWidget {
     }
 
     return Card(
-      elevation: isDark ? 0 : 2, // Daha az gölge, daha modern
+      elevation: isDark ? 0 : 2,
       shadowColor: Colors.black.withOpacity(0.05),
       color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
       shape: RoundedRectangleBorder(
@@ -61,20 +59,20 @@ class ProjectCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       clipBehavior: Clip.antiAlias,
-      margin: const EdgeInsets.only(bottom: 12.0), // Margin azaltıldı
+      margin: const EdgeInsets.only(bottom: 12.0),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(12.0), // Padding azaltıldı
+          padding: const EdgeInsets.all(12.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // --- ÜST KISIM: Başlık ve Durum ---
+              // --- ÜST KISIM ---
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
+                  Expanded( // Metin alanı esnesin
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -93,42 +91,48 @@ class ProjectCard extends StatelessWidget {
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.secondary,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(width: 8),
-                  StatusChip(status: project.status), // StatusChip'e small parametresi eklenebilir veya varsayılan kalsın
+                  StatusChip(status: project.status),
                 ],
               ),
 
               const SizedBox(height: 12),
 
-              // --- ORTA KISIM: Bütçe ve Kategori (Yan Yana) ---
+              // --- ORTA KISIM (Taşmayı önlemek için Flexible) ---
               Row(
                 children: [
-                  _CompactInfoChip(
-                    icon: Icons.account_balance_wallet_outlined,
-                    text: budgetText,
-                    color: theme.colorScheme.primary,
+                  Flexible( // Esnek genişlik
+                    child: _CompactInfoChip(
+                      icon: Icons.account_balance_wallet_outlined,
+                      text: budgetText,
+                      color: theme.colorScheme.primary,
+                    ),
                   ),
                   const SizedBox(width: 8),
-                  _CompactInfoChip(
-                    icon: Icons.category_outlined,
-                    text: project.category,
-                    color: Colors.orange.shade700,
+                  Flexible( // Esnek genişlik
+                    child: _CompactInfoChip(
+                      icon: Icons.category_outlined,
+                      text: project.category,
+                      color: Colors.orange.shade700,
+                    ),
                   ),
                 ],
               ),
 
-              // --- ALT KISIM: Yetenek Özeti (Varsa) ---
+              // --- ALT KISIM ---
               if (skillsSummary.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Row(
                   children: [
                     Icon(Icons.code, size: 14, color: Colors.grey.shade500),
                     const SizedBox(width: 4),
-                    Expanded(
+                    Expanded( // Metin uzunsa kes
                       child: Text(
                         skillsSummary,
                         style: theme.textTheme.bodySmall?.copyWith(
@@ -138,7 +142,7 @@ class ProjectCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    // Zaman bilgisi en sağa
+                    const SizedBox(width: 8),
                     Text(
                       timeago.format(project.createdAt, locale: 'tr'),
                       style: theme.textTheme.bodySmall?.copyWith(
@@ -150,9 +154,8 @@ class ProjectCard extends StatelessWidget {
                 ),
               ],
 
-              // --- AKSİYON BUTONU (Varsa Göster) ---
               if (actionButton != null) ...[
-                const Divider(height: 24), // Çizgi ile ayır
+                const Divider(height: 24),
                 SizedBox(
                   width: double.infinity,
                   child: actionButton,
@@ -166,7 +169,6 @@ class ProjectCard extends StatelessWidget {
   }
 }
 
-// --- KOMPAKT BİLGİ ETİKETİ ---
 class _CompactInfoChip extends StatelessWidget {
   final IconData icon;
   final String text;
@@ -187,11 +189,11 @@ class _CompactInfoChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: MainAxisSize.min, // İçeriği kadar küçül
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 4),
-          Flexible(
+          Flexible( // Metin taşarsa kes
             child: Text(
               text,
               style: TextStyle(

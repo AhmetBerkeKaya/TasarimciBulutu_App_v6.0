@@ -6,6 +6,7 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/services/api_service.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/models/user_summary_model.dart';
+import '../../profile/screens/profile_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final UserSummary otherUser;
@@ -59,7 +60,33 @@ class _ChatScreenState extends State<ChatScreen> {
     final currentUserId = Provider.of<AuthProvider>(context, listen: false).user!.id;
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.otherUser.name), centerTitle: false),
+      appBar: AppBar(
+        titleSpacing: 0,
+        title: InkWell(
+          onTap: () {
+            // Kişinin profiline git
+            Navigator.of(context).push(MaterialPageRoute(
+              builder: (context) => ProfileScreen(
+                  userId: widget.otherUser.id, // ProfilScreen'in userId kabul ettiğinden emin ol
+              ),
+            ));
+          },
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundImage: widget.otherUser.profilePictureUrl != null
+                    ? NetworkImage(widget.otherUser.profilePictureUrl!)
+                    : null,
+                child: widget.otherUser.profilePictureUrl == null
+                    ? Text(widget.otherUser.name[0]) : null,
+              ),
+              const SizedBox(width: 10),
+              Text(widget.otherUser.name, style: const TextStyle(fontSize: 18)),
+            ],
+          ),
+        ),
+      ),
       body: Column(
         children: [
           Expanded(

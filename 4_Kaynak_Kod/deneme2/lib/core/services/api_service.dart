@@ -170,20 +170,20 @@ class ApiService {
   Future<List<ShowcasePost>> getShowcasePosts({
     int page = 0,
     int limit = 20,
-    String? search // <-- 1. Arama parametresini (opsiyonel) ekledik
+    String? search,
+    String? sortBy, // <-- YENİ PARAMETRE
   }) async {
     try {
-      // 2. Query parametrelerini bir haritaya çıkardık
       final queryParameters = <String, dynamic>{
         'skip': page * limit,
         'limit': limit,
-        // 3. 'search' parametresini sadece null veya boş değilse ekliyoruz
         if (search != null && search.isNotEmpty) 'search': search,
+        if (sortBy != null && sortBy.isNotEmpty) 'sort_by': sortBy, // <-- EKLENDİ
       };
 
       final response = await _dio.get(
         '/showcase/posts',
-        queryParameters: queryParameters, // 4. Güncellenmiş haritayı kullandık
+        queryParameters: queryParameters,
       );
       return (response.data as List)
           .map((json) => ShowcasePost.fromJson(json))
@@ -663,7 +663,23 @@ class ApiService {
       return true;
     } on DioException { return false; }
   }
-
+  Future<bool> deleteBulkConversations(List<String> otherUserIds) async {
+    try {
+      await _dio.delete(
+        '/messages/bulk-delete',
+        data: otherUserIds,
+        // --- DÜZELTME BURADA: Content-Type'ı elle belirtiyoruz ---
+        options: Options(
+          contentType: Headers.jsonContentType, // "application/json"
+        ),
+        // ---------------------------------------------------------
+      );
+      return true;
+    } on DioException catch (e) {
+      print('deleteBulkConversations Hata: ${e.response?.data}');
+      return false;
+    }
+  }
   // --- Reviews ---
   Future<Review?> submitReview({required ReviewCreate reviewData}) async {
     try {

@@ -1,9 +1,9 @@
-// lib/core/providers/showcase_provider.dart (GÜNCELLENMİŞ HALİ)
+// lib/core/providers/showcase_provider.dart (DÜZELTİLMİŞ TAM HALİ)
 
 import 'dart:io';
-import 'package:archive/archive_io.dart'; // ZIP için gerekli
+import 'package:archive/archive_io.dart';
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as path; // Dosya adı için gerekli
+import 'package:path/path.dart' as path;
 import '../../data/models/comment_model.dart';
 import '../../data/models/showcase_post_model.dart';
 import '../services/api_service.dart';
@@ -21,16 +21,18 @@ class ShowcaseProvider with ChangeNotifier {
   bool _hasMorePosts = true;
   bool _isCreatingPost = false;
 
-  // === DEĞİŞİKLİK BURADA (1/4) ===
-  String _searchQuery = ''; // Arama terimini saklamak için yeni değişken
-  // ===============================
+  // Arama ve Sıralama State'leri
+  String _searchQuery = '';
+  String _sortBy = 'newest';
 
+  // Getter'lar
   List<ShowcasePost> get posts => _posts;
   ShowcaseState get state => _state;
   String? get errorMessage => _errorMessage;
   bool get hasMorePosts => _hasMorePosts;
   bool get isCreatingPost => _isCreatingPost;
-  String get searchQuery => _searchQuery; // Arayüzün okuyabilmesi için getter
+  String get searchQuery => _searchQuery;
+  String get sortBy => _sortBy;
 
   void updateToken(String? token) {
     if (token != null && _state == ShowcaseState.initial) {
@@ -38,7 +40,78 @@ class ShowcaseProvider with ChangeNotifier {
     }
   }
 
-  // ... (createPost ve _createZipFromFile fonksiyonları aynı, değişiklik yok) ...
+  // === SIRALAMA DEĞİŞTİRME ===
+  Future<void> setSortBy(String sortOption) async {
+    _sortBy = sortOption;
+    _posts = [];
+    _hasMorePosts = true;
+    _currentPage = 0;
+    await fetchPosts();
+  }
+
+  // === ARAMA YAPMA ===
+  Future<void> searchPosts(String query) async {
+    _searchQuery = query;
+    _posts = [];
+    _hasMorePosts = true;
+    _currentPage = 0;
+    await fetchPosts();
+  }
+
+  // === VERİ ÇEKME (FETCH) ===
+  Future<void> fetchPosts() async {
+    if (_state == ShowcaseState.loading) return;
+    _state = ShowcaseState.loading;
+    notifyListeners();
+
+    try {
+      _currentPage = 0;
+      final newPosts = await _apiService.getShowcasePosts(
+          page: _currentPage,
+          limit: _pageSize,
+          search: _searchQuery,
+          sortBy: _sortBy // <-- Virgül hatası buradaydı, düzeltildi
+      );
+      _posts = newPosts;
+      _hasMorePosts = newPosts.length == _pageSize;
+      _state = ShowcaseState.loaded;
+    } catch (e) {
+      _errorMessage = "Gönderiler yüklenirken bir hata oluştu: $e";
+      _state = ShowcaseState.error;
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  // === DAHA FAZLA YÜKLE (PAGINATION) ===
+  Future<void> fetchMorePosts() async {
+    if (_state == ShowcaseState.loadingMore || !_hasMorePosts) return;
+    _state = ShowcaseState.loadingMore;
+    notifyListeners();
+
+    try {
+      _currentPage++;
+      final newPosts = await _apiService.getShowcasePosts(
+          page: _currentPage,
+          limit: _pageSize,
+          search: _searchQuery,
+          sortBy: _sortBy // <-- Virgül hatası düzeltildi
+      );
+      if (newPosts.length < _pageSize) {
+        _hasMorePosts = false;
+      }
+      _posts.addAll(newPosts);
+      _state = ShowcaseState.loaded;
+    } catch (e) {
+      _errorMessage = "Daha fazla gönderi yüklenemedi: $e";
+      _state = ShowcaseState.error;
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  // --- DİĞER İŞLEMLER (CREATE, DELETE, LIKE, COMMENT) ---
+
   Future<bool> createPost({
     required String title,
     String? description,
@@ -86,6 +159,7 @@ class ShowcaseProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+
   Future<File> _createZipFromFile(File sourceFile, String fileNameInZip) async {
     final bytes = await sourceFile.readAsBytes();
     final archive = Archive();
@@ -100,84 +174,7 @@ class ShowcaseProvider with ChangeNotifier {
     await zipFile.writeAsBytes(zipData);
     return zipFile;
   }
-  // ==============================================================
 
-
-  // === DEĞİŞİKLİK BURADA (2/4) ===
-  // fetchPosts fonksiyonu artık arama terimini de kullanıyor
-  Future<void> fetchPosts() async {
-    if (_state == ShowcaseState.loading) return;
-    _state = ShowcaseState.loading;
-    notifyListeners();
-
-    try {
-      _currentPage = 0;
-      // 'search' parametresini ApiService'e iletiyoruz
-      final newPosts = await _apiService.getShowcasePosts(
-          page: _currentPage,
-          limit: _pageSize,
-          search: _searchQuery // <-- Arama terimini burada kullan
-      );
-      _posts = newPosts;
-      _hasMorePosts = newPosts.length == _pageSize;
-      _state = ShowcaseState.loaded;
-    } catch (e) {
-      _errorMessage = "Gönderiler yüklenirken bir hata oluştu: $e";
-      _state = ShowcaseState.error;
-    } finally {
-      notifyListeners();
-    }
-  }
-  // ===============================
-
-
-  // === DEĞİŞİKLİK BURADA (3/4) ===
-  // fetchMorePosts fonksiyonu da artık arama terimini kullanıyor
-  Future<void> fetchMorePosts() async {
-    if (_state == ShowcaseState.loadingMore || !_hasMorePosts) return;
-    _state = ShowcaseState.loadingMore;
-    notifyListeners();
-
-    try {
-      _currentPage++;
-      // 'search' parametresini ApiService'e iletiyoruz
-      final newPosts = await _apiService.getShowcasePosts(
-          page: _currentPage,
-          limit: _pageSize,
-          search: _searchQuery // <-- Arama terimini burada kullan
-      );
-      if (newPosts.length < _pageSize) {
-        _hasMorePosts = false;
-      }
-      _posts.addAll(newPosts);
-      _state = ShowcaseState.loaded;
-    } catch (e) {
-      _errorMessage = "Daha fazla gönderi yüklenemedi: $e";
-      _state = ShowcaseState.error;
-    } finally {
-      notifyListeners();
-    }
-  }
-  // ===============================
-
-
-  // === DEĞİŞİKLİK BURADA (4/4) ===
-  // Arayüzden (UI) arama işlemini tetiklemek için yeni bir fonksiyon
-  Future<void> searchPosts(String query) async {
-    // Yeni arama terimini sakla
-    _searchQuery = query;
-    // Arama yaparken mevcut listeyi temizle ve durumu 'loading' yap
-    _posts = [];
-    _hasMorePosts = true;
-    _currentPage = 0;
-
-    // fetchPosts() fonksiyonu zaten _searchQuery'yi kullanacak şekilde
-    // güncellendiği için, onu çağırmamız yeterli.
-    await fetchPosts();
-  }
-  // ===============================
-
-  // ... (Geri kalan tüm fonksiyonlar (deletePost, toggleLike, addComment vb.) aynı) ...
   Future<bool> deletePost(String postId) async {
     final postIndex = _posts.indexWhere((p) => p.id == postId);
     if (postIndex == -1) return false;
@@ -191,6 +188,7 @@ class ShowcaseProvider with ChangeNotifier {
     }
     return success;
   }
+
   Future<void> toggleLike(String postId, String currentUserId) async {
     final postIndex = _posts.indexWhere((p) => p.id == postId);
     if (postIndex == -1) return;
@@ -218,6 +216,7 @@ class ShowcaseProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+
   Future<bool> addComment(String postId, String content, {String? parentCommentId}) async {
     try {
       final newComment = await _apiService.addComment(
@@ -243,6 +242,7 @@ class ShowcaseProvider with ChangeNotifier {
       return false;
     }
   }
+
   void _findAndAddReply(List<Comment> comments, String parentId, Comment reply) {
     for (var comment in comments) {
       if (comment.id == parentId) {
@@ -254,6 +254,7 @@ class ShowcaseProvider with ChangeNotifier {
       }
     }
   }
+
   Future<void> toggleCommentLike(String postId, String commentId, String currentUserId) async {
     final postIndex = _posts.indexWhere((p) => p.id == postId);
     if (postIndex == -1) return;
@@ -281,6 +282,7 @@ class ShowcaseProvider with ChangeNotifier {
       notifyListeners();
     }
   }
+
   Comment? findComment(List<Comment> comments, String commentId) {
     for (var comment in comments) {
       if (comment.id == commentId) return comment;
@@ -289,6 +291,7 @@ class ShowcaseProvider with ChangeNotifier {
     }
     return null;
   }
+
   Future<bool> deleteComment(String postId, String commentId) async {
     final success = await _apiService.deleteComment(commentId: commentId);
     if (success) {
@@ -302,6 +305,7 @@ class ShowcaseProvider with ChangeNotifier {
     }
     return success;
   }
+
   bool _findAndRemoveComment(List<Comment> comments, String commentId) {
     for (int i = 0; i < comments.length; i++) {
       if (comments[i].id == commentId) {

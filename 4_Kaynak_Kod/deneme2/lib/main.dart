@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/providers/application_provider.dart';
 import 'core/providers/auth_provider.dart';
+import 'core/providers/message_provider.dart';
 import 'core/providers/notification_provider.dart';
 import 'core/providers/project_provider.dart';
 import 'core/providers/showcase_provider.dart';
@@ -19,6 +20,7 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => MessageProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
@@ -57,6 +59,7 @@ void main() async {
         ),
 
       ],
+
       child: const MyApp(),
     ),
   );

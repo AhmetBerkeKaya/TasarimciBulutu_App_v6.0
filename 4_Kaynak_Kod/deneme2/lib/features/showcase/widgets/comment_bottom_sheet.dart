@@ -1,4 +1,4 @@
-// lib/features/showcase/widgets/comment_bottom_sheet.dart
+// lib/features/showcase/widgets/comment_bottom_sheet.dart (KLAVYE HATASI GİDERİLMİŞ)
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -112,7 +112,6 @@ class _CommentBottomSheetState extends State<CommentBottomSheet>
   }
 
   void _showSuccessAnimation() {
-    // Basit bir başarı animasyonu
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Row(
@@ -176,44 +175,47 @@ class _CommentBottomSheetState extends State<CommentBottomSheet>
     );
 
     final sortedComments = _getSortedComments(comments);
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-    return SlideTransition(
-      position: _slideAnimation,
-      child: Container(
-        decoration: BoxDecoration(
-          color: theme.scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 20,
-              offset: const Offset(0, -5),
-            ),
-          ],
-        ),
-        child: DraggableScrollableSheet(
-          initialChildSize: 0.75,
-          minChildSize: 0.4,
-          maxChildSize: 0.95,
-          expand: false,
-          builder: (_, scrollController) {
-            return FadeTransition(
-              opacity: _fadeAnimation,
-              child: Column(
-                children: [
-                  _buildHeader(theme, comments.length),
-                  _buildSortingRow(theme),
-                  const Divider(height: 1),
-                  Expanded(
-                    child: comments.isEmpty
-                        ? _buildEmptyState(theme)
-                        : _buildCommentsList(sortedComments, scrollController),
-                  ),
-                  _buildCommentInput(theme),
-                ],
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: Container(
+          decoration: BoxDecoration(
+            color: theme.scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 20,
+                offset: const Offset(0, -5),
               ),
-            );
-          },
+            ],
+          ),
+          // Yükseklik sınırlandırması
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.85,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 1. Başlık ve Sıralama (Sabit Kısım)
+              _buildHeader(theme, comments.length),
+              _buildSortingRow(theme),
+              const Divider(height: 1),
+
+              // 2. Liste (Esnek Kısım)
+              Expanded(
+                child: comments.isEmpty
+                    ? _buildEmptyState(theme)
+                    : _buildCommentsList(sortedComments, ScrollController()),
+              ),
+
+              // 3. Giriş Alanı (Sabit Kısım)
+              _buildCommentInput(theme),
+            ],
+          ),
         ),
       ),
     );
@@ -393,52 +395,54 @@ class _CommentBottomSheetState extends State<CommentBottomSheet>
 
   Widget _buildEmptyState(ThemeData theme) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: theme.primaryColor.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.chat_bubble_outline,
-              size: 48,
-              color: theme.primaryColor.withOpacity(0.7),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Henüz hiç yorum yok',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Colors.grey[800],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'İlk yorumu sen yap ve konuşmayı başlat!',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.grey[600],
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => _focusNode.requestFocus(),
-            icon: const Icon(Icons.edit),
-            label: const Text('Yorum Yaz'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: theme.primaryColor,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(25),
+      child: SingleChildScrollView( // Klavye açılınca kaydırılabilsin
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: theme.primaryColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.chat_bubble_outline,
+                size: 48,
+                color: theme.primaryColor.withOpacity(0.7),
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 24),
+            Text(
+              'Henüz hiç yorum yok',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'İlk yorumu sen yap ve konuşmayı başlat!',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.grey[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => _focusNode.requestFocus(),
+              icon: const Icon(Icons.edit),
+              label: const Text('Yorum Yaz'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.primaryColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(25),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -507,11 +511,11 @@ class _CommentBottomSheetState extends State<CommentBottomSheet>
 
   Widget _buildCommentInput(ThemeData theme) {
     return Container(
-      padding: EdgeInsets.only(
+      padding: const EdgeInsets.only(
         left: 20,
         right: 20,
         top: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        bottom: 16, // Bottom padding'i sabitledim çünkü dışarıda padding veriyoruz
       ),
       decoration: BoxDecoration(
         color: theme.cardColor,

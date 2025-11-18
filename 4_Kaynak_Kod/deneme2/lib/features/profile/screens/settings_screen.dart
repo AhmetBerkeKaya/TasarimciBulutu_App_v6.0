@@ -9,6 +9,7 @@ import '../../../core/providers/theme_provider.dart';
 import 'change_password_screen.dart';
 import 'edit_profile_screen.dart';
 import 'help_center_screen.dart'; // <-- Yeni ekran importu
+import 'notification_settings_screen.dart';
 import 'privacy_policy_screen.dart'; // <-- Yeni ekran importu
 import 'terms_of_service_screen.dart'; // <-- Yeni ekran importu
 
@@ -68,7 +69,12 @@ class SettingsScreen extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.notifications_outlined),
                 title: const Text('Bildirimler'),
-                onTap: () { /* TODO: Bildirim ayarları ekranına git */ },
+                onTap: () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const NotificationSettingsScreen())
+                  );
+                },
               ),
             ],
           ),

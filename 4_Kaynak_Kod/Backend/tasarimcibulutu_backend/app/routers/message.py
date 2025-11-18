@@ -3,7 +3,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
-
 from app import schemas
 from app.crud import message as message_crud
 from app.dependencies import get_db, get_current_user
@@ -66,6 +65,28 @@ def mark_conversation_as_read(
         db, sender_id=other_user_id, receiver_id=current_user.id
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+
+
+
+@router.delete("/bulk-delete", status_code=status.HTTP_204_NO_CONTENT)
+def delete_multiple_conversations(
+    other_user_ids: List[UUID], # Silinecek kullanıcıların ID listesi
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """
+    Seçilen birden fazla konuşmayı tek seferde siler (Soft delete).
+    """
+    for other_id in other_user_ids:
+        message_crud.soft_delete_conversation(
+            db, user_id=current_user.id, other_user_id=other_id
+        )
+    
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 
 @router.delete("/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_message_for_user(

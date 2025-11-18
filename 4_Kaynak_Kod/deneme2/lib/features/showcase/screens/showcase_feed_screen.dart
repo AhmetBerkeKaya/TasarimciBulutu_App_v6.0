@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../../core/providers/notification_provider.dart';
 import '../../../core/providers/showcase_provider.dart';
 import '../../notifications/screens/notification_screen.dart';
+import '../widgets/filter_sheet.dart';
 import '../widgets/post_card.dart';
 import 'create_post_screen.dart';
 import '../../../data/models/enums.dart'; // UserRole enum'ı için
@@ -1003,90 +1004,8 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => _buildFilterBottomSheet(),
+      builder: (context) => const ShowcaseFilterSheet(), // <-- BUNU KULLAN
     );
   }
 
-  Widget _buildFilterBottomSheet() {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Icon(Icons.tune, color: theme.primaryColor),
-              const SizedBox(width: 12),
-              Text(
-                'Filtreler',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 32),
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: theme.primaryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                Icon(
-                  Icons.construction_rounded,
-                  size: 48,
-                  color: theme.primaryColor,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Filtreleme Özellikleri',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Kategori, teknoloji ve popülerlik filtreleri yakında eklenecek!',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[600],
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: _buildModernButton(
-              onPressed: () => Navigator.pop(context),
-              icon: Icons.close_rounded,
-              label: 'Kapat',
-              isPrimary: true,
-              theme: theme,
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
 }

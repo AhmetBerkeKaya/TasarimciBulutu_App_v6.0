@@ -9,7 +9,10 @@ from app.models.showcase import ProcessingStatus
 from . import audit as audit_crud
 from app import models, schemas, crud
 from app.models.notification import NotificationType
-from sqlalchemy import or_
+from sqlalchemy import or_, desc, asc
+from app.models.showcase import ProcessingStatus, ShowcasePost # Direkt import
+from app.models.user import User
+from app.models.skill import Skill
 
 # === LOGGER ===
 logger = logging.getLogger(__name__)
@@ -57,40 +60,66 @@ def get_showcase_post(db: Session, post_id: uuid.UUID) -> models.showcase.Showca
 
 # app/crud/showcase.py İÇİNDEKİ get_all_showcase_posts FONKSİYONU
 
+# app/crud/showcase.py İÇİNDEKİ get_all_showcase_posts FONKSİYONU
+
 def get_all_showcase_posts(
     db: Session, 
     skip: int = 0, 
     limit: int = 100, 
     search: Optional[str] = None,
-    skill: Optional[str] = None # <-- YENİ FİLTRE (Opsiyonel)
-) -> list[models.showcase.ShowcasePost]:
+    skill: Optional[str] = None,
+    sort_by: Optional[str] = 'newest' 
+) -> list[ShowcasePost]:
     
-    logger.info(f"Vitrin gönderileri listeleniyor: Skip={skip}, Limit={limit}, Search='{search}'")
+    logger.info(f"🔍 Arama İsteği: Search='{search}', Sort='{sort_by}'")
     
-    # Kullanıcı bilgisini de (owner) joinedload ile çekelim ki isme göre arayabilelim
-    query = db.query(models.showcase.ShowcasePost).options(
-        joinedload(models.showcase.ShowcasePost.owner),
-        joinedload(models.showcase.ShowcasePost.skills)
-    ).order_by(models.showcase.ShowcasePost.created_at.desc())
+    # 1. Temel sorguyu oluştur (Henüz filtreleme yok)
+    query = db.query(ShowcasePost).options(
+        joinedload(ShowcasePost.owner),
+        joinedload(ShowcasePost.skills)
+    )
+
+    # 2. Sıralamayı uygula
+    if sort_by == 'oldest':
+        query = query.order_by(asc(ShowcasePost.created_at))
+    else:
+        query = query.order_by(desc(ShowcasePost.created_at))
     
-    # --- ARAMA MANTIĞI ---
+    # 3. Tüm veriyi çek (Pagination olmadan, çünkü filtreleyip sayfalayacağız)
+    # Not: Veri çoksa bu performans sorunu yaratır ama şifreli arama için mecburuz.
+    # İleride ElasticSearch gibi bir çözüm gerekir.
+    all_posts = query.all() 
+    
+    # 4. Python Tarafında Filtreleme (Şifreli veriler çözüldükten sonra)
+    filtered_posts = []
+    
     if search:
-        search_term = f"%{search}%"
-        query = query.join(models.User).filter( # User tablosuyla birleştir
-            or_(
-                models.showcase.ShowcasePost.title.ilike(search_term),
-                models.showcase.ShowcasePost.description.ilike(search_term),
-                models.User.name.ilike(search_term) # <-- KULLANICI ADI ARAMASI EKLENDİ
-            )
-        )
-    
-    # --- YETENEK FİLTRESİ (İleride kullanılabilir) ---
+        search_lower = search.lower()
+        for post in all_posts:
+            # Başlık ve Açıklama (Normal string)
+            title_match = post.title.lower().find(search_lower) != -1
+            desc_match = post.description and post.description.lower().find(search_lower) != -1
+            
+            # Kullanıcı Adı (Şifreli string, erişince otomatik çözülür)
+            owner_name_match = post.owner.name.lower().find(search_lower) != -1
+            
+            if title_match or desc_match or owner_name_match:
+                filtered_posts.append(post)
+    else:
+        filtered_posts = all_posts
+
+    # 5. Yetenek Filtresi (Varsa)
     if skill:
-        query = query.join(models.showcase.ShowcasePost.skills).filter(
-            models.Skill.name.ilike(f"%{skill}%")
-        )
-        
-    return query.offset(skip).limit(limit).all()
+        skill_lower = skill.lower()
+        filtered_posts = [
+            p for p in filtered_posts 
+            if any(s.name.lower().find(skill_lower) != -1 for s in p.skills)
+        ]
+
+    # 6. Sayfalama (Pagination) Manuel Yapılır
+    start = skip
+    end = skip + limit
+    return filtered_posts[start:end]
 
 def delete_showcase_post(db: Session, post_id: uuid.UUID, user_id: uuid.UUID) -> models.showcase.ShowcasePost | None:
     logger.info(f"Vitrin gönderisi siliniyor: ID={post_id}, KullanıcıID={user_id}")
