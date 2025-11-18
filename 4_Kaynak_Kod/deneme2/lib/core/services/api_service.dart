@@ -243,6 +243,17 @@ class ApiService {
     }
   }
 
+  // YENİ: Tek bir gönderi detayını çekmek için
+  Future<ShowcasePost?> getShowcasePostById({required String postId}) async {
+    try {
+      final response = await _dio.get('/showcase/posts/$postId');
+      return ShowcasePost.fromJson(response.data);
+    } on DioException catch (e) {
+      print('getShowcasePostById Hata: ${e.response?.data}');
+      return null;
+    }
+  }
+
   Future<bool> deleteShowcasePost({required String postId}) async {
     try {
       final response = await _dio.delete('/showcase/posts/$postId');
@@ -395,9 +406,14 @@ class ApiService {
     } on DioException { return null; }
   }
 
-  Future<Project?> requestRevision({required String projectId}) async {
+  // GÜNCELLENMİŞ: reason parametresi eklendi
+  Future<Project?> requestRevision({required String projectId, required String reason}) async {
     try {
-      final response = await _dio.put('/projects/$projectId/request-revision');
+      // Backend body içinde 'reason' bekliyor
+      final response = await _dio.put(
+          '/projects/$projectId/request-revision',
+          data: {'reason': reason}
+      );
       return Project.fromJson(response.data);
     } on DioException { return null; }
   }

@@ -1,4 +1,4 @@
-// lib/features/project/screens/project_detail_screen.dart
+// lib/features/project/screens/project_detail_screen.dart (TAM GÜNCEL HALİ)
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -22,11 +22,9 @@ class ProjectDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // --- DEĞİŞİKLİK BURADA BAŞLIYOR ---
-
-    // Artık hem AuthProvider'ı hem de ApplicationProvider'ı dinliyoruz.
+    // Provider'ları dinle
     final authProvider = context.watch<AuthProvider>();
-    final applicationProvider = context.watch<ApplicationProvider>(); // <-- YENİ EKLENDİ
+    final applicationProvider = context.watch<ApplicationProvider>();
 
     final currentUser = authProvider.user;
     final theme = Theme.of(context);
@@ -36,7 +34,7 @@ class ProjectDetailScreen extends StatelessWidget {
       return const Scaffold(body: Center(child: Text("Oturum bulunamadı.")));
     }
 
-    // Gerekli tüm koşulları en başta hesaplayalım
+    // Durumları hesapla
     final bool isOwner = currentUser.id == project.owner.id;
     final bool isAcceptedFreelancer =
         project.acceptedApplication?.freelancer.id == currentUser.id;
@@ -47,20 +45,15 @@ class ProjectDetailScreen extends StatelessWidget {
     final bool isFreelancer = currentUser.role == UserRole.freelancer;
     final bool isProjectOpen = project.status == ProjectStatus.open;
 
-    // 'hasAlreadyApplied' mantığını canlı veriyle güncelliyoruz.
-    // Provider'daki `myApplications` listesinde bu projenin ID'si var mı diye kontrol et.
+    // Başvuru kontrolü (Canlı veriden)
     final bool hasAlreadyApplied = applicationProvider.myApplications
-        .any((app) => app.project.id == project.id); // <-- MANTIK DEĞİŞTİ
-
-    // --- DEĞİŞİKLİK BURADA BİTİYOR ---
+        .any((app) => app.project.id == project.id);
 
     return Scaffold(
-      // Body'nin AppBar'ın arkasına uzanmasını sağlayarak modern bir görünüm elde ediyoruz
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        // Geri butonunun arka planını daha görünür yapıyoruz
         leading: Padding(
           padding: const EdgeInsets.all(8.0),
           child: CircleAvatar(
@@ -73,12 +66,12 @@ class ProjectDetailScreen extends StatelessWidget {
       ),
       body: CustomScrollView(
         slivers: [
-          // --- PROJE BAŞLIĞI VE FİRMA BİLGİSİ ---
+          // --- BAŞLIK VE FİRMA ---
           SliverToBoxAdapter(
             child: _buildHeader(context, project),
           ),
 
-          // --- DETAYLAR BÖLÜMÜ (RESPONSIVE) ---
+          // --- DETAY KUTUCUKLARI ---
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -111,11 +104,86 @@ class ProjectDetailScreen extends StatelessWidget {
               ),
             ),
           ),
+
+          // Alt barın içeriği kapatmaması için boşluk
+          if (project.revisions.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Divider(height: 32), // Ayırıcı çizgi
+                    _buildSectionTitle(context, 'Revizyon Geçmişi'),
+                    const SizedBox(height: 12),
+                    ListView.builder(
+                      shrinkWrap: true, // Scroll içinde scroll olmaması için
+                      physics: const NeverScrollableScrollPhysics(),
+                      padding: EdgeInsets.zero,
+                      itemCount: project.revisions.length,
+                      itemBuilder: (context, index) {
+                        final revision = project.revisions[index];
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          color: isDark ? Colors.grey[900] : Colors.orange[50],
+                          shape: RoundedRectangleBorder(
+                            side: BorderSide(color: Colors.orange.withOpacity(0.3)),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(Icons.history, size: 18, color: Colors.orange),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Revizyon Talebi',
+                                      style: theme.textTheme.titleSmall?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.orange[800],
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      timeago.format(revision.requestedAt, locale: 'tr'),
+                                      style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  revision.requestReason,
+                                  style: theme.textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 120), // Rahatça kaydırmak için boşluk
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
-      // --- ALT KISIMDA SABİT DURAN AKSİYON BUTONU ---
-      bottomNavigationBar: Padding(
+      bottomSheet: Container(
+        width: double.infinity,
         padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: theme.scaffoldBackgroundColor,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
         child: _buildActionButtons(
           context,
           isOwner: isOwner,
@@ -193,11 +261,9 @@ class ProjectDetailScreen extends StatelessWidget {
       budgetText = 'Teklife Açık';
     }
 
-    // Wrap widget'ı, elemanlar sığmadığında otomatik olarak alt satıra geçer.
-    // Bu, ekranın her boyutta düzgün görünmesini sağlar.
     return Wrap(
-      spacing: 12.0, // Yatay boşluk
-      runSpacing: 12.0, // Dikey boşluk
+      spacing: 12.0,
+      runSpacing: 12.0,
       children: [
         _InfoTile(
             icon: Icons.category_outlined,
@@ -230,21 +296,56 @@ class ProjectDetailScreen extends StatelessWidget {
     );
   }
 
+  // --- GÜNCELLENMİŞ YETENEK LİSTESİ ---
   Widget _buildSkillsWrap(BuildContext context, List<Skill> skills) {
     final theme = Theme.of(context);
-    return Wrap(
-      spacing: 8.0,
-      runSpacing: 8.0,
-      children: skills.map((skill) {
-        return Chip(
-          avatar: Icon(Icons.code, size: 16, color: theme.colorScheme.secondary),
-          label: Text(skill.name),
-          backgroundColor: theme.colorScheme.secondaryContainer.withOpacity(0.5),
-          side: BorderSide.none,
-        );
-      }).toList(),
+    final isDark = theme.brightness == Brightness.dark;
+
+    return SizedBox(
+      height: 40, // Sabit yükseklik verip yatay kaydırma sağlıyoruz
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: skills.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final skill = skills[index];
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? theme.colorScheme.secondaryContainer.withOpacity(0.2)
+                  : theme.colorScheme.secondaryContainer.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: theme.colorScheme.secondary.withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                    Icons.code,
+                    size: 16,
+                    color: theme.colorScheme.secondary
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  skill.name,
+                  style: TextStyle(
+                    color: theme.colorScheme.onSecondaryContainer,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
+  // ------------------------------------
 
   Widget _buildActionButtons(
       BuildContext context, {
@@ -256,16 +357,15 @@ class ProjectDetailScreen extends StatelessWidget {
         required bool hasAlreadyReviewed,
         required Project project,
       }) {
-    // ... (Bu fonksiyonun iç mantığı aynı, sadece stil değişikliği yapıldı)
-    // ... Sadece bir tane ElevatedButton döndürecek şekilde refactor edildi.
 
     String? buttonText;
     IconData? buttonIcon;
     VoidCallback? onPressed;
     Color? buttonColor;
+    Color? foregroundColor;
 
-    // Firma için Başvuru Yönetim Butonu
-    if (isOwner && project.status != ProjectStatus.completed) {
+    // 1. Firma: Başvuruları Gör
+    if (isOwner && project.status == ProjectStatus.open) {
       buttonText = 'Gelen Başvuruları Görüntüle (${project.applications.length})';
       buttonIcon = Icons.people_outline;
       onPressed = () => Navigator.of(context).push(MaterialPageRoute(
@@ -273,7 +373,85 @@ class ProjectDetailScreen extends StatelessWidget {
             projectId: project.id, projectTitle: project.title),
       ));
     }
-    // Freelancer için Başvuru Butonu
+    // --- YENİ EKLENEN KISIM: REVIZYON / ONAY MANTIĞI ---
+    // 2. Firma: İnceleme Bekleniyor (Teslim Edilmiş)
+    else if (isOwner && project.status == ProjectStatus.pending_review) {
+      buttonText = 'Teslimatı Değerlendir';
+      buttonIcon = Icons.rate_review_outlined;
+      buttonColor = Colors.orange.shade700;
+      onPressed = () {
+        // Onaylama veya Revizyon seçeneği sunan BottomSheet aç
+        showModalBottomSheet(
+          context: context,
+          builder: (context) => Container(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('Teslimatı Değerlendir', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                const Text('Freelancer projeyi teslim etti. İnceleyip onaylayabilir veya revizyon isteyebilirsiniz.'),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: const Text('Teslimatı Onayla ve Tamamla'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context); // Sheet'i kapat
+                    context.read<ProjectProvider>().acceptDelivery(project.id);
+                  },
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.replay),
+                  label: const Text('Revizyon Talep Et'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.orange[800],
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    side: BorderSide(color: Colors.orange.shade800),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context); // Önce Sheet'i kapat
+                    _showRevisionDialog(context, project.id); // Sonra Dialog aç
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      };
+    }
+    // -------------------------------------------------
+
+    // 3. Freelancer: Teslim Et (Devam Ediyor)
+    else if (isFreelancer && project.status == ProjectStatus.in_progress) {
+      buttonText = 'Projeyi Teslim Et';
+      buttonIcon = Icons.upload_file;
+      buttonColor = Colors.blue;
+      onPressed = () async {
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text("Teslimatı Onayla"),
+            content: const Text("Projeyi tamamladığınızı ve teslim etmek istediğinizi onaylıyor musunuz?"),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("İptal")),
+              ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Evet, Teslim Et")),
+            ],
+          ),
+        );
+        if (confirm == true && context.mounted) {
+          context.read<ProjectProvider>().deliverProject(project.id);
+        }
+      };
+    }
+
+    // 4. Freelancer: Başvur
     else if (isFreelancer && isProjectOpen && !hasAlreadyApplied) {
       buttonText = 'Projeye Başvur';
       buttonIcon = Icons.send_outlined;
@@ -282,20 +460,17 @@ class ProjectDetailScreen extends StatelessWidget {
         builder: (context) => ApplicationDialog(projectId: project.id),
       );
     }
-    // Değerlendirme Butonu
+
+    // 5. Herkes: Değerlendir (Tamamlandı)
     else if (canReview && !hasAlreadyReviewed) {
       buttonText = 'Değerlendirme Yap';
       buttonIcon = Icons.rate_review_outlined;
       buttonColor = Colors.amber.shade800;
       onPressed = () async {
-        // Değerlendirilecek kişiyi (reviewee) dinamik olarak belirle:
-        // Eğer ben proje sahibiysem (isOwner), kabul edilen freelancer'ı değerlendiririm.
-        // Eğer ben freelancer'sam, proje sahibini değerlendiririm.
         final reviewee = isOwner
             ? project.acceptedApplication!.freelancer
             : project.owner;
 
-        // Değerlendirme ekranına yönlendir ve geri dönüldüğünde sonucu bekle
         final reviewSubmitted = await Navigator.of(context).push<bool>(
           MaterialPageRoute(
             builder: (context) => SubmitReviewScreen(
@@ -306,22 +481,29 @@ class ProjectDetailScreen extends StatelessWidget {
           ),
         );
 
-        // Eğer submit_review_screen'den `true` değeriyle dönüldüyse (yani başarılıysa),
-        // `hasAlreadyReviewed` durumunu güncellemek için proje verilerini yeniden çek.
-        // Bu, butonun anında kaybolmasını sağlar.
         if (reviewSubmitted == true && context.mounted) {
           context.read<ProjectProvider>().fetchMyProjects();
         }
       };
     }
-    // Freelancer başvurduysa ama proje hala açıksa
+
+    // 6. Pasif Durumlar (Başvuruldu, Bekleniyor vs.)
     else if (isFreelancer && isProjectOpen && hasAlreadyApplied) {
       buttonText = 'Başvurunuz Gönderildi';
       buttonIcon = Icons.check_circle_outline;
-      onPressed = null; // Buton pasif
+      onPressed = null; // Pasif
+    } else if (project.status == ProjectStatus.pending_review && isFreelancer) {
+      buttonText = 'Onay Bekleniyor';
+      buttonIcon = Icons.hourglass_empty;
+      onPressed = null;
+    } else if (project.status == ProjectStatus.completed) {
+      buttonText = 'Proje Tamamlandı';
+      buttonIcon = Icons.check_circle;
+      buttonColor = Colors.grey;
+      onPressed = null;
     }
 
-    if (buttonText != null && onPressed != null) {
+    if (buttonText != null) {
       return SizedBox(
         width: double.infinity,
         child: ElevatedButton.icon(
@@ -329,7 +511,8 @@ class ProjectDetailScreen extends StatelessWidget {
           label: Text(buttonText),
           onPressed: onPressed,
           style: ElevatedButton.styleFrom(
-            backgroundColor: buttonColor,
+            backgroundColor: buttonColor ?? Theme.of(context).primaryColor,
+            foregroundColor: foregroundColor ?? Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 16),
             textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
@@ -337,12 +520,63 @@ class ProjectDetailScreen extends StatelessWidget {
       );
     }
 
-    // Hiçbir koşul sağlanmazsa boş bir widget döndür
     return const SizedBox.shrink();
+  }
+
+  // === YENİ FONKSİYON: REVIZYON DİYALOĞU ===
+  void _showRevisionDialog(BuildContext context, String projectId) {
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Revizyon Talebi'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Lütfen revizyon sebebini ve düzeltilmesi gereken yerleri açıklayın:',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              maxLines: 3,
+              autofocus: true,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Örn: Renkler uyuşmamış, logo daha büyük olmalı...',
+                alignLabelWithHint: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('İptal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final reason = reasonController.text.trim();
+              if (reason.isNotEmpty) {
+                Navigator.pop(context); // Dialog'u kapat
+                // Provider üzerinden API çağrısı (reason parametresiyle)
+                // NOT: requestRevision fonksiyonunu reason alacak şekilde güncellemeliyiz.
+                context.read<ProjectProvider>().requestRevision(projectId, reason);
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Lütfen bir açıklama girin.")),
+                );
+              }
+            },
+            child: const Text('Gönder'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
-/// Detay kartı içindeki küçük bilgi kutucukları için bir widget.
 class _InfoTile extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -355,29 +589,40 @@ class _InfoTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12.0),
-        decoration: BoxDecoration(
-          color: isDark ? Colors.grey.shade800.withOpacity(0.5) : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade300.withOpacity(0.5)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: theme.colorScheme.primary, size: 24),
-            const SizedBox(height: 8),
-            Text(label,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: Colors.grey.shade600)),
-            const SizedBox(height: 4),
-            Text(value,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleSmall
-                    ?.copyWith(fontWeight: FontWeight.bold)),
-          ],
-        ),
+
+    // --- DÜZELTME: Expanded KALDIRILDI ---
+    // Wrap içinde Expanded kullanılamaz. Bunun yerine Container'a
+    // esnek bir genişlik verebiliriz veya içeriği kadar yer kaplamasını sağlarız.
+    // En temizi, ekranın yarısını kaplayacak şekilde ayarlamak.
+
+    final width = (MediaQuery.of(context).size.width - 48) / 2; // 2 sütunlu yapı için
+
+    return Container(
+      width: width, // Sabit genişlik
+      padding: const EdgeInsets.all(12.0),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.grey.shade800.withOpacity(0.5) : Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300.withOpacity(0.5)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min, // İçeriği kadar yükseklik
+        children: [
+          Icon(icon, color: theme.colorScheme.primary, size: 24),
+          const SizedBox(height: 8),
+          Text(label,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: Colors.grey.shade600)),
+          const SizedBox(height: 4),
+          Text(value,
+              textAlign: TextAlign.center,
+              maxLines: 2, // Çok uzun metinleri sınırla
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.bold)),
+        ],
       ),
     );
+    // -------------------------------------
   }
 }

@@ -2,7 +2,7 @@ from app.database import Base
 
 from .user import User, UserRole
 from .message import Message
-from .project import Project, ProjectStatus
+from .project import Project, ProjectStatus, ProjectRevision
 from .application import Application, ApplicationStatus
 from .notification import Notification, NotificationType
 from .skill_test import SkillTest

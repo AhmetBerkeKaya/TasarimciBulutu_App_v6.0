@@ -9,6 +9,9 @@ import '../../../core/providers/showcase_provider.dart';
 import '../../notifications/screens/notification_screen.dart';
 import '../widgets/post_card.dart';
 import 'create_post_screen.dart';
+import '../../../data/models/enums.dart'; // UserRole enum'ı için
+import '../../../core/providers/auth_provider.dart'; // Kullanıcı bilgisi için
+
 
 class ShowcaseFeedScreen extends StatefulWidget {
   const ShowcaseFeedScreen({super.key});
@@ -34,13 +37,8 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
   bool _isRefreshing = false;
   bool _isSearchExpanded = false;
 
-  // === DEĞİŞİKLİK BURADA (1/4) ===
-  // _searchQuery değişkenini kaldırdık, çünkü artık provider'da tutuluyor.
-  // String _searchQuery = ''; // <-- BU SATIRI SİLDİK
-
-  // Debouncer (geciktirici) için bir Timer ekledik
   Timer? _debounce;
-  // ===============================
+  Timer? _notificationTimer;
 
   @override
   void initState() {
@@ -48,6 +46,20 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
     _initializeAnimations();
     _setupInitialData();
     _scrollController.addListener(_onScroll);
+
+    // === FAZ 1 DÜZELTMESİ: BİLDİRİM SAYAÇ GÜNCELLEME ===
+    // 1. Ekran açılır açılmaz sayacı çek
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<NotificationProvider>(context, listen: false).fetchUnreadCount();
+    });
+
+    // 2. Her 30 saniyede bir sessizce güncelle (Polling)
+    _notificationTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted) {
+        Provider.of<NotificationProvider>(context, listen: false).fetchUnreadCount();
+      }
+    });
+    // ===================================================
   }
 
   // ... ( _initializeAnimations() fonksiyonu aynı, değişiklik yok) ...
@@ -123,21 +135,13 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
 
   Future<void> _handleRefresh() async {
     if (_isRefreshing) return;
-
     setState(() => _isRefreshing = true);
-
-    // === DEĞİŞİKLİK BURADA (3/4) ===
-    // Yenileme yaptığımızda arama çubuğunu da temizleyelim
     _searchController.clear();
-    // Arama sorgusunu provider'da temizle ve yeniden yükle
     await Provider.of<ShowcaseProvider>(context, listen: false).searchPosts('');
-    // ===============================
-
-    await Future.delayed(const Duration(milliseconds: 500)); // Minimum duration for UX
-
-    if (mounted) {
-      setState(() => _isRefreshing = false);
-    }
+    // Yenileme yaparken bildirimleri de güncelle
+    if(mounted) await Provider.of<NotificationProvider>(context, listen: false).fetchUnreadCount();
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (mounted) setState(() => _isRefreshing = false);
   }
 
   // ... ( _scrollToTop() fonksiyonu aynı, değişiklik yok) ...
@@ -888,7 +892,14 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
     );
   }
 
-  Widget _buildFloatingActionButtons(ThemeData theme, bool isDark) {
+  Widget? _buildFloatingActionButtons(ThemeData theme, bool isDark) {
+    // --- DÜZELTME: ROL KONTROLÜ ---
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    // Eğer kullanıcı Firma (company) ise veya giriş yapmamışsa butonları gösterme
+    if (authProvider.user?.role == UserRole.client || authProvider.user == null) {
+      return null;
+    }
+    // -----------------------------
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [

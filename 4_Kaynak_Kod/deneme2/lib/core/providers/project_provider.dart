@@ -183,17 +183,25 @@ class ProjectProvider with ChangeNotifier {
     return false;
   }
 
-  Future<bool> requestRevision(String projectId) async {
-    if (_token == null) return false;
-    final updatedProject = await _apiService.requestRevision(projectId: projectId);
+  Future<void> requestRevision(String projectId, String reason) async {
+    _isLoading = true;
+    notifyListeners();
+
+    final updatedProject = await _apiService.requestRevision(
+        projectId: projectId,
+        reason: reason // <-- EKLENDİ
+    );
+
     if (updatedProject != null) {
-      _myPendingReviewProjects.removeWhere((p) => p.id == projectId);
-      _myActiveProjects.insert(0, updatedProject);
-      notifyListeners();
-      return true;
+      // Listeyi güncelle veya detay sayfasını yenile
+      await fetchMyProjects();
+      // Eğer detay sayfasındaysan ve o projeyi tutuyorsan onu da güncellemen gerekebilir
     }
-    return false;
+
+    _isLoading = false;
+    notifyListeners();
   }
+
   // --- YENİ EKLENECEK FONKSİYON ---
   Future<bool> submitReview({required ReviewCreate reviewData}) async {
     if (_token == null) {

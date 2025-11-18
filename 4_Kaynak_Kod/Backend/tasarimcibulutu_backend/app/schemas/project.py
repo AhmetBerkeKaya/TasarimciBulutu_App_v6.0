@@ -4,9 +4,22 @@ import uuid
 from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict
-from ..models.project import ProjectStatus
+from app.models.project import ProjectStatus
 
-# from .user import User, UserInResponse # <-- BU SATIRI TAMAMEN SİLİN
+# İlişkili şemaları import ediyoruz
+from app.schemas.user import UserSummary
+from app.schemas.skill import Skill 
+
+# ==============================================================
+# ===            YENİ: PROJE REVIZYON ŞEMASI                 ===
+# ==============================================================
+class ProjectRevision(BaseModel):
+    id: uuid.UUID
+    request_reason: str
+    requested_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+# ==============================================================
 
 class ProjectBase(BaseModel):
     title: str
@@ -17,10 +30,8 @@ class ProjectBase(BaseModel):
     deadline: Optional[datetime] = None
 
 class ProjectCreate(ProjectBase):
-    # --- YENİ ALAN EKLENDİ ---
     # Flutter'dan gelen yetenek ID'lerinin listesi
     required_skill_ids: List[uuid.UUID] = []
-    # --- BİTTİ ---
 
 class ProjectUpdate(BaseModel):
     title: Optional[str] = None
@@ -39,13 +50,19 @@ class ProjectInReview(BaseModel):
     
 class Project(ProjectBase):
     id: uuid.UUID
-    status: ProjectStatus
+    status: str # Enum yerine string dönmesi serialize açısından daha güvenlidir
     created_at: datetime
-    owner: 'UserSummary' # <-- Bu zaten doğru şekilde forward reference
+    updated_at: datetime
+    owner: UserSummary
+    
+    # Projenin gerektirdiği yeteneklerin detaylı listesi
+    required_skills: List[Skill] = []
 
-    # --- EN KRİTİK DEĞİŞİKLİK BURADA ---
-    # Application şemasını doğrudan import etmek yerine, adını string olarak yazıyoruz.
-    applications: List['Application'] = []
-    # --- BİTTİ ---
+    # Circular Import hatasını önlemek için 'Application' string olarak belirtildi
+    applications: List['Application'] = [] 
+
+    # === YENİ ALAN: REVIZYON GEÇMİŞİ ===
+    revisions: List[ProjectRevision] = [] 
+    # ===================================
 
     model_config = ConfigDict(from_attributes=True)

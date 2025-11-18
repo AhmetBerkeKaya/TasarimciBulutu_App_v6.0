@@ -6,8 +6,10 @@ import 'package:timeago/timeago.dart' as timeago;
 
 import '../../../core/providers/notification_provider.dart';
 import '../../../data/models/notification_model.dart';
-import '../../../data/models/user_summary_model.dart';
-
+import '../../showcase/screens/showcase_detail_screen.dart'; // Detay sayfası
+import '../../showcase/screens/showcase_feed_screen.dart'; // Veya feed
+import '../../../data/models/showcase_post_model.dart';
+import '../../../core/services/api_service.dart'; // Veri çekmek için
 // Gerekli ekranları import edelim
 import '../../activity/screens/activity_screen.dart';
 import '../../messages/screens/chat_screen.dart';
@@ -83,12 +85,28 @@ class NotificationTile extends StatelessWidget {
       case NotificationType.commentLiked:
       case NotificationType.commentReplied:
         if (notification.relatedEntityId != null) {
-          // TODO: ProjectDetailLoaderScreen gibi bir ShowcasePostLoaderScreen oluşturup
-          // post'u ID ile çekip sonra ShowcaseDetailScreen'e yönlendirmek en doğrusu olacaktır.
-          // Şimdilik geçici bir mesaj gösteriyoruz.
+          // 1. Yükleniyor göster
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Yönlendirme tamamlanıyor...')),
+            const SnackBar(
+              content: Text('Gönderi yükleniyor...'),
+              duration: Duration(seconds: 1),
+            ),
           );
+
+          // 2. Gönderi verisini çek (ApiService'i direkt kullanıyoruz pratiklik için)
+          // Not: Provider üzerinden de yapılabilir ama burada tek seferlik işlem var.
+          ApiService().getShowcasePostById(postId: notification.relatedEntityId!).then((post) {
+            if (post != null) {
+              // 3. Detay sayfasına git
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (context) => ShowcaseDetailScreen(post: post),
+              ));
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Bu gönderi silinmiş veya ulaşılamıyor.')),
+              );
+            }
+          });
         }
         break;
       case NotificationType.applicationAccepted:

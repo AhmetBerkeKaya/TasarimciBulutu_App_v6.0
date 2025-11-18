@@ -31,7 +31,7 @@ def get_db():
 
 
 @router.post("/token", response_model=Token)
-@limiter.limit("5/15minute")
+@limiter.limit("10/15minute")
 def login_for_access_token(request: Request, db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
     user = user_crud.authenticate_user(db, email=form_data.username, password=form_data.password)
     if not user:

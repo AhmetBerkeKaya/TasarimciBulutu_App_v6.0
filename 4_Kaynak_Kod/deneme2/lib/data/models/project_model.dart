@@ -22,6 +22,10 @@ class Project {
   final DateTime createdAt;
   final List<Skill> requiredSkills; // <-- YENİ: Gerekli yetenekler listesi
 
+  // === YENİ ALAN: REVIZYON GEÇMİŞİ ===
+  final List<ProjectRevision> revisions;
+  // ===================================
+
   Project({
     required this.id,
     required this.title,
@@ -35,7 +39,11 @@ class Project {
     required this.reviews,
     required this.category,
     required this.createdAt,
-    required this.requiredSkills, // <-- YENİ
+    required this.requiredSkills,
+
+    // === YENİ PARAMETRE ===
+    this.revisions = const [], // Varsayılan olarak boş liste
+    // ======================
   });
 
   Application? get acceptedApplication => applications.firstWhereOrNull(
@@ -93,6 +101,34 @@ class Project {
           ?.map((skillJson) => Skill.fromJson(skillJson))
           .toList() ??
           [],
+
+      // === YENİ: REVIZYONLARI PARSE ET ===
+      revisions: (json['revisions'] as List<dynamic>?)
+          ?.map((e) => ProjectRevision.fromJson(e))
+          .toList() ??
+          [],
+      // ===================================
+    );
+  }
+}
+
+// === YENİ MODEL SINIFI: PROJE REVIZYONU ===
+class ProjectRevision {
+  final String id;
+  final String requestReason;
+  final DateTime requestedAt;
+
+  ProjectRevision({
+    required this.id,
+    required this.requestReason,
+    required this.requestedAt
+  });
+
+  factory ProjectRevision.fromJson(Map<String, dynamic> json) {
+    return ProjectRevision(
+      id: json['id'],
+      requestReason: json['request_reason'],
+      requestedAt: DateTime.parse(json['requested_at']),
     );
   }
 }

@@ -30,7 +30,11 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
     // Ekran açıldığında hem normal projeleri hem de önerilenleri çek
     Future.microtask(() {
       final provider = context.read<ProjectProvider>();
-      provider.fetchOpenProjects();
+
+      // --- DÜZELTME: ÖNCE FİLTRELERİ TEMİZLE ---
+      // Bu satır, önceki oturumdan kalan "kategori=Mimari" gibi filtreleri siler.
+      provider.clearFiltersAndFetch();
+
       provider.fetchRecommendedProjects();
     });
     _searchController.addListener(_onSearchChanged);

@@ -28,12 +28,28 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
   // PDF'i internetten indirip geçici bir dosyaya kaydeden fonksiyon
   Future<void> _loadPdf() async {
     try {
-      final url = Uri.parse('http://10.0.2.2:8000/${widget.fileUrl}');
+      // --- DÜZELTME BAŞLANGICI ---
+      String urlString = widget.fileUrl;
+
+      // Eğer gelen link 'http' ile başlamıyorsa (yani relative path ise), başına sunucu adresini ekle.
+      // Başlıyorsa (Supabase linki gibi), olduğu gibi kullan.
+      if (!urlString.startsWith('http')) {
+        urlString = 'http://10.0.2.2:8000/$urlString';
+      }
+
+      final url = Uri.parse(urlString);
+      // --- DÜZELTME SONU ---
+
+      print("PDF İndiriliyor: $url"); // Debug için log ekledim
+
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
         final dir = await getApplicationDocumentsDirectory();
-        final file = File('${dir.path}/${widget.fileUrl.split('/').last}');
+        // Dosya ismini URL'den güvenli bir şekilde alalım
+        final filename = widget.fileUrl.split('/').last.split('?').first;
+        final file = File('${dir.path}/$filename');
+
         await file.writeAsBytes(response.bodyBytes, flush: true);
         setState(() {
           _localFilePath = file.path;

@@ -1,11 +1,9 @@
 # app/routers/project.py
 
-# --- YENİ İMPORTLAR ---
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-# --- BİTTİ ---
-
+from fastapi import Body
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
@@ -13,12 +11,7 @@ from app import crud, schemas
 from app.dependencies import get_db, get_current_user
 from app.models.user import User as UserModel, UserRole
 
-# --- BU ROUTER'A ÖZEL LIMITER BAŞLATMA ---
-# Her router kendi limiter'ına sahip olabilir veya global olanı kullanabilir.
-# Burada açıkça tanımlamak daha anlaşılır olmasını sağlar.
 limiter = Limiter(key_func=get_remote_address)
-# --- BİTTİ ---
-
 
 router = APIRouter(
     prefix="/projects",
@@ -118,10 +111,23 @@ def accept_delivery_and_complete_project(request: Request, project_id: UUID, db:
 
 @router.put("/{project_id}/request-revision", response_model=schemas.Project, summary="Firma revizyon talep eder")
 @limiter.limit("20/hour")
-def request_revision_as_client(request: Request, project_id: UUID, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
+def request_revision_as_client(
+    request: Request, 
+    project_id: UUID, 
+    reason: str = Body(..., embed=True), 
+    db: Session = Depends(get_db), 
+    current_user: UserModel = Depends(get_current_user)
+):
     if current_user.role != UserRole.client:
         raise HTTPException(status_code=403, detail="Only clients can request revisions.")
-    updated_project = crud.project.request_revision(db=db, project_id=project_id, owner_id=current_user.id)
+    
+    updated_project = crud.project.request_revision(
+        db=db, 
+        project_id=project_id, 
+        owner_id=current_user.id,
+        reason=reason 
+    )
+    
     if not updated_project:
         raise HTTPException(status_code=404, detail="Project not found, not pending review, or you are not the owner.")
     return updated_project

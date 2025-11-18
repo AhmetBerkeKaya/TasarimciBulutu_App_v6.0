@@ -11,11 +11,20 @@ class ManagePortfolioScreen extends StatelessWidget {
 
   // Dosya yoluna göre doğru ikonu veya resmi döndürür.
   Widget _buildFilePreview(String fileUrl) {
+    // --- DÜZELTME BAŞLANGICI ---
+    // Linki kontrol et, http yoksa ekle
+    String fullPath = fileUrl;
+    if (!fullPath.startsWith('http')) {
+      fullPath = 'http://10.0.2.2:8000/$fileUrl';
+    }
+    // --- DÜZELTME SONU ---
+
     final extension = fileUrl.split('.').last.toLowerCase();
+
     if (['png', 'jpg', 'jpeg', 'gif'].contains(extension)) {
-      // Eğer bir resimse, ağdan yükleyerek göster
+      // Eğer bir resimse, DÜZELTİLMİŞ fullPath ile yükle
       return Image.network(
-        'http://10.0.2.2:8000/$fileUrl',
+        fullPath, // <-- Burayı düzelttik
         fit: BoxFit.cover,
         errorBuilder: (c, e, s) => const Icon(Icons.broken_image, color: Colors.grey),
       );

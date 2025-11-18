@@ -1,3 +1,5 @@
+// lib/features/dashboard/screens/dashboard_screen.dart (DÜZELTİLMİŞ TAM HALİ)
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../common_widgets/loading_indicator.dart';
@@ -7,7 +9,7 @@ import '../../../data/models/enums.dart';
 import '../../../data/models/project_model.dart';
 import '../../project/widgets/project_card.dart';
 import '../../project/screens/project_detail_screen.dart';
-import '../../project/screens/create_project_screen.dart'; // <-- Proje oluşturma ekranını import et
+import '../../project/screens/create_project_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -45,7 +47,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         body: Consumer<ProjectProvider>(
           builder: (context, projectProvider, child) {
-            // ... (builder'ın içi aynı)
             if (projectProvider.isLoading && projectProvider.myActiveProjects.isEmpty) {
               return const LoadingIndicator();
             }
@@ -62,17 +63,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             );
           },
         ),
-        // --- YENİ EKLENEN BUTON ---
         floatingActionButton: (userRole == UserRole.client)
             ? FloatingActionButton.extended(
           onPressed: () async {
-            // Proje oluşturma ekranına git
             final bool? projectCreated = await Navigator.of(context).push<bool>(
               MaterialPageRoute(builder: (context) => const CreateProjectScreen()),
             );
 
-            // Eğer proje oluşturma ekranından 'true' değeriyle dönülürse
-            // (yani proje başarıyla oluşturulduysa), paneldeki proje listesini yenile.
             if (projectCreated == true && context.mounted) {
               projectProvider.fetchMyProjects();
             }
@@ -80,14 +77,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           label: const Text('Proje Yayınla'),
           icon: const Icon(Icons.add),
         )
-            : null, // Eğer kullanıcı firma değilse, butonu gösterme
-        // --- BİTTİ ---
+            : null,
       ),
     );
   }
 
-  // _buildProjectList ve _buildActionButton fonksiyonları aynı kalacak
-  // ...
   Widget _buildProjectList(BuildContext context, {
     required List<Project> projects,
     required UserRole? userRole,
@@ -134,7 +128,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           TextButton.icon(
             icon: const Icon(Icons.edit_note_outlined),
             label: const Text('Revizyon İste'),
-            onPressed: () => projectProvider.requestRevision(project.id),
+            // --- DÜZELTME BURADA: DİYALOG AÇILIYOR ---
+            onPressed: () => _showRevisionDialog(context, project.id),
+            // -----------------------------------------
             style: TextButton.styleFrom(foregroundColor: Colors.orange.shade700),
           ),
           TextButton.icon(
@@ -147,5 +143,62 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
     }
     return null;
+  }
+
+  // === YENİ EKLENEN FONKSİYON: REVIZYON DİYALOĞU ===
+  void _showRevisionDialog(BuildContext context, String projectId) {
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Revizyon Talebi'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Lütfen revizyon sebebini ve düzeltilmesi gereken yerleri açıklayın:',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: reasonController,
+              maxLines: 3,
+              autofocus: true,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Örn: Renkler uyuşmamış, logo daha büyük olmalı...',
+                alignLabelWithHint: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('İptal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final reason = reasonController.text.trim();
+              if (reason.isNotEmpty) {
+                Navigator.pop(context); // Dialog'u kapat
+
+                // Provider üzerinden API çağrısı (reason parametresiyle)
+                context.read<ProjectProvider>().requestRevision(projectId, reason);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Revizyon talebi iletildi.")),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Lütfen bir açıklama girin.")),
+                );
+              }
+            },
+            child: const Text('Gönder'),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -55,18 +55,39 @@ def create_showcase_post(db: Session, post: schemas.showcase.ShowcasePostCreate 
 def get_showcase_post(db: Session, post_id: uuid.UUID) -> models.showcase.ShowcasePost | None:
     return db.query(models.showcase.ShowcasePost).filter(models.showcase.ShowcasePost.id == post_id).first()
 
-def get_all_showcase_posts(db: Session, skip: int = 0, limit: int = 100, search: Optional[str] = None) -> list[models.showcase.ShowcasePost]:
+# app/crud/showcase.py İÇİNDEKİ get_all_showcase_posts FONKSİYONU
+
+def get_all_showcase_posts(
+    db: Session, 
+    skip: int = 0, 
+    limit: int = 100, 
+    search: Optional[str] = None,
+    skill: Optional[str] = None # <-- YENİ FİLTRE (Opsiyonel)
+) -> list[models.showcase.ShowcasePost]:
+    
     logger.info(f"Vitrin gönderileri listeleniyor: Skip={skip}, Limit={limit}, Search='{search}'")
     
-    query = db.query(models.showcase.ShowcasePost).order_by(models.showcase.ShowcasePost.created_at.desc())
+    # Kullanıcı bilgisini de (owner) joinedload ile çekelim ki isme göre arayabilelim
+    query = db.query(models.showcase.ShowcasePost).options(
+        joinedload(models.showcase.ShowcasePost.owner),
+        joinedload(models.showcase.ShowcasePost.skills)
+    ).order_by(models.showcase.ShowcasePost.created_at.desc())
     
+    # --- ARAMA MANTIĞI ---
     if search:
         search_term = f"%{search}%"
-        query = query.filter(
+        query = query.join(models.User).filter( # User tablosuyla birleştir
             or_(
                 models.showcase.ShowcasePost.title.ilike(search_term),
-                models.showcase.ShowcasePost.description.ilike(search_term)
+                models.showcase.ShowcasePost.description.ilike(search_term),
+                models.User.name.ilike(search_term) # <-- KULLANICI ADI ARAMASI EKLENDİ
             )
+        )
+    
+    # --- YETENEK FİLTRESİ (İleride kullanılabilir) ---
+    if skill:
+        query = query.join(models.showcase.ShowcasePost.skills).filter(
+            models.Skill.name.ilike(f"%{skill}%")
         )
         
     return query.offset(skip).limit(limit).all()

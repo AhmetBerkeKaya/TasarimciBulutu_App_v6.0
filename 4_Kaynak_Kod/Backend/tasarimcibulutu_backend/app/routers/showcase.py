@@ -15,6 +15,7 @@ from app.config import settings
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from app.models.showcase import ProcessingStatus
+from app.models.user import UserRole # <-- EKLENDİ
 
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(
@@ -24,8 +25,18 @@ router = APIRouter(
 
 ALLOWED_FILE_EXTENSIONS = {".zip"}
 
+# --- YARDIMCI FONKSİYON: ROL KONTROLÜ ---
+def check_freelancer_permission(user: models.User):
+    # Modelindeki enum yapısına göre (UserRole.freelancer veya string olarak)
+    # Veritabanında enum 'freelancer' olarak tutuluyorsa:
+    if user.role != UserRole.freelancer:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Sadece Freelancer hesapları vitrine gönderi yükleyebilir."
+        )
+
 # =======================================================================
-# 1. INITIALIZE UPLOAD (Yükleme Başlatma)
+# 1. INITIALIZE UPLOAD
 # =======================================================================
 @router.post("/posts/initialize-upload", response_model=schemas.showcase.ShowcasePostInitResponse)
 @limiter.limit("20/hour")
@@ -35,39 +46,34 @@ def initialize_post_upload(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
+    # --- FAZ 1 DÜZELTMESİ: ROL KONTROLÜ ---
+    check_freelancer_permission(current_user)
+    # --------------------------------------
+
     _, file_extension = os.path.splitext(post_init_data.original_filename.lower())
     
-    # Sadece ZIP dosyaları model işlemeye girer, ama resim yüklemeleri de bu endpointi kullanabilir.
-    # Şimdilik sadece ZIP kısıtlaması varsa:
     if file_extension not in ALLOWED_FILE_EXTENSIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid file type. Allowed extensions are: {', '.join(ALLOWED_FILE_EXTENSIONS)}"
         )
 
-    # 1. Veritabanında kaydı oluştur (PENDING)
     db_post = crud.showcase.create_showcase_post(db, post=post_init_data, user_id=current_user.id, status=ProcessingStatus.PENDING)
 
     raw_file_key = f"uploads-raw/{db_post.id}{file_extension}"
 
-    # 2. Doğru Public URL'i Belirle (Supabase veya Cloudinary)
     if file_extension == ".zip":
-        # Supabase Public URL Formatı: https://<project_id>.supabase.co/storage/v1/object/public/<bucket>/<path>
-        # settings.SUPABASE_URL şuna benzer: https://xyz.supabase.co
         project_id = settings.SUPABASE_URL.split("https://")[1].split(".")[0]
         raw_file_url = f"https://{project_id}.supabase.co/storage/v1/object/public/raw-files/{raw_file_key}"
     else:
-        # Resimler için Cloudinary URL yapısı
         raw_file_url = f"https://res.cloudinary.com/{settings.CLOUDINARY_CLOUD_NAME}/image/upload/{raw_file_key}"
 
-    # 3. URL'i veritabanına kaydet
     crud.showcase.update_post_raw_file_url(db, post_id=db_post.id, file_url=raw_file_url)
     
-    # 4. Yükleme Parametrelerini Oluştur (s3_utils artık akıllı, ZIP ise Proxy döner)
     upload_data = s3_utils.create_presigned_post_url(
-        bucket_name="raw-files", # Supabase bucket adı
+        bucket_name="raw-files",
         object_name=raw_file_key,
-        conditions=[["content-length-range", 1, 524288000]], # 500MB limit
+        conditions=[["content-length-range", 1, 524288000]],
         expires_in=3600
     )
 
@@ -80,10 +86,8 @@ def initialize_post_upload(
     )
 
 # =======================================================================
-# 2. CREATE POST (Yükleme Sonrası Kayıt ve İşlem Başlatma)
+# 2. CREATE POST
 # =======================================================================
-# app/routers/showcase.py içindeki create_post fonksiyonunu bununla değiştir:
-
 @router.post("/posts", response_model=schemas.showcase.ShowcasePost, status_code=status.HTTP_201_CREATED)
 @limiter.limit("20/hour")
 def create_post(
@@ -93,18 +97,19 @@ def create_post(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    print(f"DEBUG: create_post çağrıldı. Gelen file_url: {post.file_url}") # <-- LOG
+    # --- FAZ 1 DÜZELTMESİ: ROL KONTROLÜ ---
+    check_freelancer_permission(current_user)
+    # --------------------------------------
 
-    # Veritabanı kaydını oluştur
+    print(f"DEBUG: create_post çağrıldı. Gelen file_url: {post.file_url}")
+
     db_post = crud.showcase.create_showcase_post(db=db, post=post, user_id=current_user.id)
     
-    # DEBUG: Dosya uzantısı kontrolü
     if post.file_url:
         print(f"DEBUG: Dosya uzantısı zip mi? {post.file_url.endswith('.zip')}")
 
-    # Eğer dosya bir ZIP ise ve model işleme gerekiyorsa, arka plan görevini başlat
     if post.file_url and post.file_url.endswith('.zip'):
-        print(f"🚀 Background Task Tetikleniyor: Post ID {db_post.id}") # <-- LOG
+        print(f"🚀 Background Task Tetikleniyor: Post ID {db_post.id}")
         
         background_tasks.add_task(
             model_processor.process_3d_model_background, 
@@ -112,12 +117,12 @@ def create_post(
             file_url=post.file_url
         )
     else:
-        print("⚠️ Background Task tetiklenmedi! file_url boş veya zip değil.") # <-- LOG
+        print("⚠️ Background Task tetiklenmedi! file_url boş veya zip değil.")
     
     return db_post
 
 # =======================================================================
-# 3. LIST POSTS (Arama Destekli)
+# 3. LIST POSTS
 # =======================================================================
 @router.get("/posts", response_model=List[schemas.showcase.ShowcasePost])
 @limiter.limit("60/minute")
@@ -152,26 +157,24 @@ def delete_post(request: Request, post_id: uuid.UUID, db: Session = Depends(get_
     return
 
 # =======================================================================
-# 6. LIKE / UNLIKE POST
+# 6. LIKE / UNLIKE
 # =======================================================================
 @router.post("/posts/{post_id}/like", response_model=schemas.showcase.PostLike, status_code=status.HTTP_201_CREATED)
 @limiter.limit("100/minute")
 def like_a_post(request: Request, post_id: uuid.UUID, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     like = crud.showcase.like_post(db, post_id=post_id, user_id=current_user.id)
-    if not like:
-        raise HTTPException(status_code=404, detail="Post not found")
+    if not like: raise HTTPException(status_code=404, detail="Post not found")
     return like
 
 @router.delete("/posts/{post_id}/like", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("100/minute")
 def unlike_a_post(request: Request, post_id: uuid.UUID, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     success = crud.showcase.unlike_post(db, post_id=post_id, user_id=current_user.id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Like not found")
+    if not success: raise HTTPException(status_code=404, detail="Like not found")
     return
 
 # =======================================================================
-# 7. COMMENTS (Create, Delete, Like, Unlike)
+# 7. COMMENTS
 # =======================================================================
 @router.post("/posts/{post_id}/comments", response_model=schemas.showcase.Comment, status_code=status.HTTP_201_CREATED)
 @limiter.limit("30/hour")
@@ -193,8 +196,7 @@ def create_a_comment(
 @limiter.limit("20/hour")
 def delete_a_comment(request: Request, comment_id: uuid.UUID, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     deleted_comment = crud.showcase.delete_comment(db, comment_id=comment_id, user_id=current_user.id)
-    if not deleted_comment:
-        raise HTTPException(status_code=403, detail="Comment not found or you don't have permission to delete it")
+    if not deleted_comment: raise HTTPException(status_code=403, detail="Comment not found or not permitted")
     return
 
 @router.post("/comments/{comment_id}/like", response_model=schemas.showcase.CommentLike, status_code=status.HTTP_201_CREATED)
@@ -206,8 +208,7 @@ def like_a_comment(
     current_user: models.User = Depends(get_current_user)
 ):
     like = crud.showcase.like_comment(db, comment_id=comment_id, user_id=current_user.id)
-    if not like:
-        raise HTTPException(status_code=404, detail="Comment not found")
+    if not like: raise HTTPException(status_code=404, detail="Comment not found")
     return like
 
 @router.delete("/comments/{comment_id}/like", status_code=status.HTTP_204_NO_CONTENT)
@@ -219,69 +220,50 @@ def unlike_a_comment(
     current_user: models.User = Depends(get_current_user)
 ):
     success = crud.showcase.unlike_comment(db, comment_id=comment_id, user_id=current_user.id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Like not found")
+    if not success: raise HTTPException(status_code=404, detail="Like not found")
     return
 
 # =======================================================================
-# 8. PROXY UPLOAD ENDPOINT (Supabase için Köprü + TETİKLEYİCİ)
+# 8. PROXY UPLOAD ENDPOINT
 # =======================================================================
 @router.post("/upload-proxy", status_code=status.HTTP_200_OK)
 @limiter.limit("10/hour")
 async def upload_proxy(
     request: Request,
-    background_tasks: BackgroundTasks, # <-- EKLENDİ: Görevi buradan başlatacağız
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     file_path: str = Form(...), 
     bucket: str = Form(...)     
 ):
-    """
-    Büyük dosyaları (ZIP) Frontend -> Backend -> Supabase rotasıyla yükler.
-    Ve yükleme biter bitmez Model İşleme servisini tetikler.
-    """
     print(f"🚀 Proxy Upload Başladı: {file.filename} -> Supabase/{bucket}/{file_path}")
     
     try:
-        # 1. Dosya içeriğini oku
         file_content = await file.read()
-        
-        # 2. Supabase Client Oluştur
         supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
         
-        # 3. Supabase Storage'a Yükle
         res = supabase.storage.from_(bucket).upload(
             path=file_path,
             file=file_content,
             file_options={"content-type": "application/zip"}
         )
-        
         print(f"✅ Supabase Yükleme Başarılı. Path: {file_path}")
         
-        # --- YENİ EKLENEN KISIM: İŞLEMEYİ BAŞLAT ---
-        # file_path şuna benziyor: "uploads-raw/UUID.zip"
-        # Bizim post_id'ye (UUID) ihtiyacımız var.
         try:
-            # Dosya adını al: UUID.zip
             filename = file_path.split('/')[-1]
-            # Uzantıyı at: UUID
             post_id = filename.rsplit('.', 1)[0]
             
-            # Dosyanın tam URL'ini oluştur (Model Processor indirmek için buna ihtiyaç duyar)
             project_id = settings.SUPABASE_URL.split("https://")[1].split(".")[0]
             file_url = f"https://{project_id}.supabase.co/storage/v1/object/public/{bucket}/{file_path}"
             
             print(f"🚀 Yükleme bitti, Model İşleme Tetikleniyor... Post ID: {post_id}")
             
-            # Arka plan görevini başlat!
             background_tasks.add_task(
                 model_processor.process_3d_model_background, 
                 post_id=post_id, 
                 file_url=file_url
             )
-            
         except Exception as trigger_error:
-            print(f"⚠️ Model işleme tetiklenirken hata (kritik değil, upload başarılı): {trigger_error}")
-        # -------------------------------------------
+            print(f"⚠️ Model işleme tetiklenirken hata: {trigger_error}")
         
         return {"message": "Upload successful and processing started via proxy"}
         
