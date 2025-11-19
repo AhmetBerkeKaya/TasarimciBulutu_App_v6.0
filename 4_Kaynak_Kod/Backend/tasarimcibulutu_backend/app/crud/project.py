@@ -46,42 +46,47 @@ def get_projects(
     
     query = db.query(models.Project).options(joinedload(models.Project.owner))
     
-    # 1. Sadece AÇIK (OPEN) projeleri getir
+    # 1. Sadece AÇIK projeler
     query = query.filter(models.Project.status == ProjectStatus.OPEN.value)
 
-    # --- FAZ 1 DÜZELTMESİ: TARİHİ GEÇMİŞ PROJELERİ GİZLE ---
-    # Deadline'ı (son başvuru tarihi) şu anki zamandan ileri olanları getir.
-    # Deadline'ı null olanlar (süresiz) listelensin diye 'or_' kullanmıyoruz, 
-    # genelde deadline zorunludur. Eğer opsiyonelse mantığı değiştirebiliriz.
-    # YENİSİ (Düzeltilmiş):
+    # 2. Tarihi geçmemiş olanlar (veya süresizler)
     current_now = datetime.now(timezone.utc)
-    
-    # Mantık: Deadline ya şu andan büyük olsun YA DA (OR) Deadline boş (None) olsun.
     query = query.filter(
         or_(
             models.Project.deadline > current_now,
             models.Project.deadline.is_(None)
         )
     )
-    # -------------------------------------------------------
 
     if search:
         query = query.filter(models.Project.title.ilike(f"%{search}%"))
+    
     if category:
+        # Enum string değerine göre filtreleme
         query = query.filter(models.Project.category == category)
     
-    if min_budget is not None:
-        query = query.filter(models.Project.budget_min >= min_budget)
-    if max_budget is not None:
-        query = query.filter(models.Project.budget_max <= max_budget)
-    
+    # === KRİTİK DÜZELTME: BÜTÇE KESİŞİM MANTIĞI ===
+    if min_budget is not None and max_budget is not None:
+        # Kullanıcı bir aralık belirttiyse (örn: 1000 - 5000)
+        # Projenin bütçe aralığı bu aralıkla herhangi bir noktada örtüşüyor mu?
+        query = query.filter(
+            models.Project.budget_min <= max_budget,
+            models.Project.budget_max >= min_budget
+        )
+    elif min_budget is not None:
+        # "En az X TL" -> Projenin maximum bütçesi X'ten büyük olmalı ki bir umut olsun.
+        query = query.filter(models.Project.budget_max >= min_budget)
+    elif max_budget is not None:
+        # "En çok Y TL" -> Projenin minimum bütçesi Y'den küçük olmalı.
+        query = query.filter(models.Project.budget_min <= max_budget)
+    # ==============================================
+
     # Sıralama
     if sort_by == 'budget_high':
         query = query.order_by(desc(models.Project.budget_max))
     elif sort_by == 'budget_low':
         query = query.order_by(asc(models.Project.budget_min))
     else:
-        # Varsayılan: En yeniden en eskiye
         query = query.order_by(desc(models.Project.created_at))
         
     return query.offset(skip).limit(limit).all()

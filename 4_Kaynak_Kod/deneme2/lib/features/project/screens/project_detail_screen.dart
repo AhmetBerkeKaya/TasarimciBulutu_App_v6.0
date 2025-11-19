@@ -63,6 +63,10 @@ class ProjectDetailScreen extends StatelessWidget {
             child: BackButton(color: theme.colorScheme.onSurface),
           ),
         ),
+        actions: [
+          if (isOwner)
+            _buildOwnerMenu(context, project.id),
+        ],
       ),
       body: CustomScrollView(
         slivers: [
@@ -346,7 +350,100 @@ class ProjectDetailScreen extends StatelessWidget {
     );
   }
   // ------------------------------------
+  Widget _buildOwnerMenu(BuildContext context, String projectId) {
+    final theme = Theme.of(context);
+    return PopupMenuButton<String>(
+      icon: CircleAvatar(
+        backgroundColor: theme.brightness == Brightness.dark
+            ? Colors.black.withOpacity(0.3)
+            : Colors.white.withOpacity(0.5),
+        child: Icon(
+          Icons.more_vert,
+          color: theme.colorScheme.onSurface,
+        ),
+      ),
+      onSelected: (value) {
+        if (value == 'edit') {
+          // Düzenleme ekranına git
+          // NOT: Buraya özel bir ProjectEditScreen yapısı gerekecek.
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Düzenleme Ekranı entegre edilecek.")),
+          );
+        } else if (value == 'delete') {
+          _showDeleteConfirmationDialog(context, projectId);
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem<String>(
+          value: 'edit',
+          child: Row(
+            children: [
+              Icon(Icons.edit_outlined),
+              SizedBox(width: 8),
+              Text('Projeyi Düzenle'),
+            ],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline, color: Colors.red),
+              SizedBox(width: 8),
+              Text('Projeyi Sil', style: TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
+/// lib/features/project/screens/project_detail_screen.dart dosyasının en altındaki fonksiyonu güncelle:
+
+  void _showDeleteConfirmationDialog(BuildContext context, String projectId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Proje Silme Onayı'),
+        content: const Text(
+            'Bu projeyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz ve tüm başvurular silinecektir.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('İptal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              // 1. Önce Diyaloğu kapat
+              Navigator.pop(context);
+
+              // 2. Silme işlemini başlat
+              final success = await context.read<ProjectProvider>().deleteProject(projectId);
+
+              if (context.mounted) {
+                if (success) {
+                  // === KRİTİK EKLEME ===
+                  // 3. İşlem başarılıysa DETAY EKRANINI DA KAPAT (Geri Dön)
+                  Navigator.of(context).pop();
+                  // =====================
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Proje başarıyla silindi!')),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Silme işlemi başarısız oldu.')),
+                  );
+                }
+              }
+            },
+            child: const Text('Sil', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
   Widget _buildActionButtons(
       BuildContext context, {
         required bool isOwner,

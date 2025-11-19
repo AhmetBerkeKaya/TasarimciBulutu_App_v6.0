@@ -223,6 +223,88 @@ class ProjectProvider with ChangeNotifier {
       return false;
     }
   }
+  Future<bool> updateProject({
+    required String projectId,
+    required String title,
+    required String description,
+    required String category,
+    int? budgetMin,
+    int? budgetMax,
+    DateTime? deadline,
+    // Yetenek listesini güncelleme şimdilik dışarıda tutuldu, istersen eklenebilir.
+  }) async {
+    if (_token == null) return false;
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final updateData = {
+        'title': title,
+        'description': description,
+        'category': category,
+        'budget_min': budgetMin,
+        'budget_max': budgetMax,
+        // API'ye ISO8601 formatında gönderiyoruz
+        'deadline': deadline?.toIso8601String(),
+      };
+
+      final updatedProject = await _apiService.updateProject(
+        projectId: projectId,
+        updateData: updateData,
+      );
+
+      if (updatedProject != null) {
+        // Kritik adım: Güncellenen projeyi ilgili listede bul ve değiştir.
+        final index = _myActiveProjects.indexWhere((p) => p.id == projectId);
+        if (index != -1) {
+          _myActiveProjects[index] = updatedProject;
+        }
+        // Projelerim listesini toplu güncelleme ihtiyacını ortadan kaldırır.
+        notifyListeners();
+        return true;
+      }
+      return false;
+
+    } catch (e) {
+      _errorMessage = "Proje güncellenirken bir hata oluştu: ${e.toString()}";
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+// --- YENİ: Proje Silme Fonksiyonu ---
+  Future<bool> deleteProject(String projectId) async {
+    if (_token == null) return false;
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final success = await _apiService.deleteProject(projectId: projectId);
+
+      if (success) {
+        // Kritik adım: Projeyi tüm listelerden (active, pending, completed) kaldır.
+        _myActiveProjects.removeWhere((p) => p.id == projectId);
+        _myPendingReviewProjects.removeWhere((p) => p.id == projectId);
+        _myCompletedProjects.removeWhere((p) => p.id == projectId);
+
+        // Arayüzün güncellenmesi için bir kez daha MyProjects'i çekmek daha güvenli olabilir.
+        await fetchMyProjects();
+
+        notifyListeners();
+        return true;
+      }
+      return false;
+
+    } catch (e) {
+      _errorMessage = "Proje silinirken bir hata oluştu: ${e.toString()}";
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
   // --- YENİ FONKSİYON ---
   Future<void> fetchRecommendedProjects() async {
     if (_token == null) return;

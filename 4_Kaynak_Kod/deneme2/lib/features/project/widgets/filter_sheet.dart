@@ -17,7 +17,35 @@ class _FilterSheetState extends State<FilterSheet> {
   late TextEditingController _minBudgetController;
   late TextEditingController _maxBudgetController;
 
-  final List<String> _categories = ['Mimarlık', 'Makine Tasarımı', 'İnşaat', 'Kalıp Tasarımı', 'Yazılım'];
+  // === GÜNCELLENMİŞ: BACKEND ENUM İLE BİREBİR AYNI LİSTE ===
+  final List<String> _categories = [
+    "Mimari Tasarım ve Projelendirme",
+    "İç Mimarlık ve Dekorasyon",
+    "Peyzaj Mimarlığı ve Çevre Düzenleme",
+    "İnşaat ve Yapı Mühendisliği",
+    "Makine ve Mekanik Tasarım",
+    "Elektrik ve Elektronik Mühendisliği",
+    "MEP (Mekanik, Elektrik, Tesisat)",
+    "Endüstriyel Tasarım ve Ürün Geliştirme",
+    "Kalıp Tasarımı ve İmalat",
+    "Otomotiv ve Taşıt Tasarımı",
+    "Havacılık ve Uzay Sanayi",
+    "Gemi İnşaatı ve Denizcilik",
+    "Borulama ve Tesisat Tasarımı",
+    "BIM (Yapı Bilgi Modellemesi)",
+    "3D Görselleştirme ve Render",
+    "Animasyon ve Hareketli Grafik",
+    "Yazılım Geliştirme (Web/Mobil/Masaüstü)",
+    "Gömülü Sistemler ve IoT",
+    "Yapay Zeka ve Makine Öğrenmesi",
+    "Oyun Tasarımı ve Geliştirme",
+    "Kullanıcı Arayüzü ve Deneyimi (UI/UX)",
+    "Grafik Tasarım ve Markalama",
+    "Harita ve Kadastro Mühendisliği",
+    "Enerji Sistemleri Mühendisliği"
+  ];
+  // =========================================================
+
   final Map<String, String> _sortOptions = {
     'newest': 'En Yeni',
     'budget_high': 'En Yüksek Bütçe',
@@ -28,7 +56,13 @@ class _FilterSheetState extends State<FilterSheet> {
   void initState() {
     super.initState();
     final projectProvider = context.read<ProjectProvider>();
-    _selectedCategory = projectProvider.activeCategory;
+    // Eğer seçili kategori yeni listede yoksa (eski veri kalıntısı), null yap.
+    if (projectProvider.activeCategory != null && !_categories.contains(projectProvider.activeCategory)) {
+      _selectedCategory = null;
+    } else {
+      _selectedCategory = projectProvider.activeCategory;
+    }
+
     _selectedSortBy = _sortOptions[projectProvider.activeSortBy];
     _minBudgetController = TextEditingController(text: projectProvider.activeMinBudget?.toString() ?? '');
     _maxBudgetController = TextEditingController(text: projectProvider.activeMaxBudget?.toString() ?? '');
@@ -69,13 +103,19 @@ class _FilterSheetState extends State<FilterSheet> {
           children: [
             Text('Filtrele ve Sırala', style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 24),
+
             DropdownButtonFormField<String>(
               value: _selectedCategory,
+              isExpanded: true, // Uzun metinlerin taşmasını önler
               hint: const Text('Tüm Kategoriler'),
-              items: _categories.map((c) => DropdownMenuItem<String>(value: c, child: Text(c))).toList(),
+              items: _categories.map((c) => DropdownMenuItem<String>(
+                  value: c,
+                  child: Text(c, overflow: TextOverflow.ellipsis) // Uzun metinler için ... koyar
+              )).toList(),
               onChanged: (v) => setState(() => _selectedCategory = v),
               decoration: const InputDecoration(border: OutlineInputBorder(), labelText: 'Kategori'),
             ),
+
             const SizedBox(height: 16),
             Row(
               children: [

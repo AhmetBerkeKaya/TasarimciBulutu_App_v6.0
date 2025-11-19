@@ -8,6 +8,33 @@ import '../../../core/providers/project_provider.dart';
 import '../../../core/services/api_service.dart';
 import '../../../data/models/skill_model.dart'; // ApiService'i import et
 
+const List<String> _categories = [
+  "Mimari Tasarım ve Projelendirme",
+  "İç Mimarlık ve Dekorasyon",
+  "Peyzaj Mimarlığı ve Çevre Düzenleme",
+  "İnşaat ve Yapı Mühendisliği",
+  "Makine ve Mekanik Tasarım",
+  "Elektrik ve Elektronik Mühendisliği",
+  "MEP (Mekanik, Elektrik, Tesisat)",
+  "Endüstriyel Tasarım ve Ürün Geliştirme",
+  "Kalıp Tasarımı ve İmalat",
+  "Otomotiv ve Taşıt Tasarımı",
+  "Havacılık ve Uzay Sanayi",
+  "Gemi İnşaatı ve Denizcilik",
+  "Borulama ve Tesisat Tasarımı",
+  "BIM (Yapı Bilgi Modellemesi)",
+  "3D Görselleştirme ve Render",
+  "Animasyon ve Hareketli Grafik",
+  "Yazılım Geliştirme (Web/Mobil/Masaüstü)",
+  "Gömülü Sistemler ve IoT",
+  "Yapay Zeka ve Makine Öğrenmesi",
+  "Oyun Tasarımı ve Geliştirme",
+  "Kullanıcı Arayüzü ve Deneyimi (UI/UX)",
+  "Grafik Tasarım ve Markalama",
+  "Harita ve Kadastro Mühendisliği",
+  "Enerji Sistemleri Mühendisliği"
+];
+
 class CreateProjectScreen extends StatefulWidget {
   const CreateProjectScreen({super.key});
 
@@ -19,7 +46,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _categoryController = TextEditingController();
+  String? _selectedCategory; // <-- YENİ: Seçimi tutacak değişken
   final _budgetMinController = TextEditingController();
   final _budgetMaxController = TextEditingController();
   final _deadlineController = TextEditingController();
@@ -62,7 +89,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
       final success = await Provider.of<ProjectProvider>(context, listen: false).createProject(
         title: _titleController.text,
         description: _descriptionController.text,
-        category: _categoryController.text,
+        category: _selectedCategory!,
         budgetMin: int.tryParse(_budgetMinController.text),
         budgetMax: int.tryParse(_budgetMaxController.text),
         deadline: _selectedDeadline,
@@ -130,10 +157,21 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
                 validator: (value) => value!.isEmpty ? 'Lütfen bir başlık girin.' : null,
               ),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _categoryController,
-                decoration: const InputDecoration(labelText: 'Kategori'),
-                validator: (value) => value!.isEmpty ? 'Lütfen bir kategori belirtin.' : null,
+              // --- YENİ: KATEGORİ DROPDOWN'I ---
+              DropdownButtonFormField<String>(
+                value: _selectedCategory,
+                isExpanded: true,
+                hint: const Text('Kategori Seçin'),
+                items: _categories.map((c) => DropdownMenuItem<String>(
+                    value: c,
+                    child: Text(c, overflow: TextOverflow.ellipsis)
+                )).toList(),
+                onChanged: (v) => setState(() => _selectedCategory = v),
+                decoration: const InputDecoration(
+                  labelText: 'Kategori',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) => value == null || value.isEmpty ? 'Lütfen bir kategori seçin.' : null,
               ),
               const SizedBox(height: 16),
               // --- YENİ YETENEK SEÇİM ALANI ---

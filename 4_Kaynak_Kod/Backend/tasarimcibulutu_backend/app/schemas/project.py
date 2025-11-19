@@ -4,9 +4,7 @@ import uuid
 from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict
-from app.models.project import ProjectStatus
-
-# İlişkili şemaları import ediyoruz
+from app.models.project import ProjectStatus, ProjectCategory
 from app.schemas.user import UserSummary
 from app.schemas.skill import Skill 
 
@@ -24,19 +22,18 @@ class ProjectRevision(BaseModel):
 class ProjectBase(BaseModel):
     title: str
     description: str
-    category: str
+    category: ProjectCategory # <-- String yerine yeni ENUM
     budget_min: Optional[int] = None
     budget_max: Optional[int] = None
     deadline: Optional[datetime] = None
 
 class ProjectCreate(ProjectBase):
-    # Flutter'dan gelen yetenek ID'lerinin listesi
     required_skill_ids: List[uuid.UUID] = []
 
 class ProjectUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
-    category: Optional[str] = None
+    category: Optional[ProjectCategory] = None # <-- String yerine yeni ENUM
     budget_min: Optional[int] = None
     budget_max: Optional[int] = None
     deadline: Optional[datetime] = None

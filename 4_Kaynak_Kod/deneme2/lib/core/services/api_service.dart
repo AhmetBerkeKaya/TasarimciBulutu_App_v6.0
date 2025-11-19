@@ -424,7 +424,26 @@ class ApiService {
       return Project.fromJson(response.data);
     } on DioException { return null; }
   }
+  Future<Project?> updateProject({required String projectId, required Map<String, dynamic> updateData}) async {
+    try {
+      // updateData içinde title, description, budget_min vb. alanlar olacak
+      final response = await _dio.put('/projects/$projectId', data: updateData);
+      return Project.fromJson(response.data);
+    } on DioException {
+      return null;
+    }
+  }
 
+// --- YENİ: Proje Silme Metodu ---
+  Future<bool> deleteProject({required String projectId}) async {
+    try {
+      final response = await _dio.delete('/projects/$projectId');
+      // Başarılı silme (204 No Content)
+      return response.statusCode == 204;
+    } on DioException {
+      return false;
+    }
+  }
   // --- Application ---
   Future<bool> applyToProject({required String projectId, String? coverLetter, double? proposedBudget}) async {
     try {

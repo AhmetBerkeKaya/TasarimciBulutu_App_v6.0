@@ -85,9 +85,62 @@ def get_project_applications(request: Request, project_id: UUID, db: Session = D
     return crud.application.get_applications_by_project(db, project_id=project_id)
 
 
-# --- Proje Yaşam Döngüsü Endpoint'leri (Teslim Et, Onayla, Revizyon İste) ---
-# Bu işlemler proje durumunu değiştirir ve önemlidir. Spamlenmemelidir.
-# Saatlik bir limit, yanlışlıkla çift tıklama gibi sorunları engellerken normal kullanımı kısıtlamaz.
+# --- YENİ: Proje Güncelleme Endpoint'i ---
+@router.put("/{project_id}", response_model=schemas.Project, summary="Firmanın projesini günceller")
+@limiter.limit("20/hour")
+def update_project(
+    request: Request,
+    project_id: UUID,
+    project_update: schemas.ProjectUpdate,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user)
+):
+    # 1. Yetki Kontrolü
+    if current_user.role != UserRole.client:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only clients can update projects.")
+    
+    # Projeyi çek ve sahibini kontrol et
+    db_project = crud.project.get_project(db, project_id=project_id)
+    if not db_project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if db_project.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only update your own projects.")
+    
+    # 2. CRUD fonksiyonunu çağır
+    updated_project = crud.project.update_project(db=db, project_id=project_id, project_update=project_update)
+    
+    if not updated_project:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update project.")
+        
+    return updated_project
+
+# --- YENİ: Proje Silme Endpoint'i ---
+@router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Firmanın projesini siler")
+@limiter.limit("5/hour") # Silme işlemi daha kısıtlı olmalı
+def delete_project(
+    request: Request,
+    project_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user)
+):
+    # 1. Yetki Kontrolü
+    if current_user.role != UserRole.client:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only clients can delete projects.")
+
+    # Projeyi çek ve sahibini kontrol et
+    db_project = crud.project.get_project(db, project_id=project_id)
+    if not db_project:
+        # Silinmek istenen proje yoksa bile 204 dönebiliriz (idempotency)
+        return {"detail": "Project not found or already deleted"} 
+    
+    if db_project.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only delete your own projects.")
+    
+    # 2. CRUD fonksiyonunu çağır
+    crud.project.delete_project(db=db, project_id=project_id)
+    
+    # 204 No Content döndüğü için başarılı yanıt otomatik oluşur
+    return {}
 
 @router.put("/{project_id}/deliver", response_model=schemas.Project, summary="Freelancer işi teslim eder")
 @limiter.limit("20/hour")
