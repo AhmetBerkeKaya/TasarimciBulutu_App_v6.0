@@ -7,7 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response, UploadF
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
-from app.config import settings# YENİ EKLENEN IMPORT'LAR: S3 için şemaları ve yardımcı fonksiyonları ekliyoruz
+from app.config import settings
+# YENİ EKLENEN IMPORT'LAR: S3 için şemaları ve yardımcı fonksiyonları ekliyoruz
 from app.schemas import s3 as s3_schemas
 from app.utils import s3 as s3_utils
 # ================================================================
@@ -18,6 +19,10 @@ from app.models.user import User as UserModel
 from app.schemas.user import User as UserSchema, UserCreate, UserUpdate, PasswordUpdate
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+
+# --- LOGLAMA İÇİN YENİ IMPORT ---
+from app.crud import audit as audit_crud
+# --------------------------------
 
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(
@@ -47,9 +52,8 @@ def create_picture_upload_url(
     ]
 
     response = s3_utils.create_presigned_post_url(
-        bucket_name="tasarimcibulutu", # Cloudinary'de klasör ismi olarak kullanılabilir ama kodumuzda şu an kullanmadık, sorun yok.
+        bucket_name="tasarimcibulutu", 
         object_name=object_name,
-        # fields ve conditions parametreleri Cloudinary implementasyonunda kullanılmıyor ama hata vermemesi için kalsın.
         fields=fields,
         conditions=conditions
     )
@@ -57,14 +61,7 @@ def create_picture_upload_url(
     if response is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Could not create upload URL.")
 
-    # Cloudinary'den dönen tam URL'i (https://res.cloudinary...) veritabanına kaydetmek istiyoruz.
-    # Bu yüzden 'file_path' alanına, erişilebilir tam URL'i koyuyoruz.
-    
-    # s3.py içinde URL'i hesaplamıştık, onu buradan döndürelim.
-    # Ama s3.py şu an dict dönüyor. Orayı biraz daha akıllıca yapalım.
-    
-    # HIZLI ÇÖZÜM: URL'i burada manuel oluşturup dönelim.
-    cloud_name = settings.CLOUDINARY_CLOUD_NAME    # Uzantıyı ayırıp public_id alıyoruz
+    cloud_name = settings.CLOUDINARY_CLOUD_NAME    
     public_id = object_name.rsplit('.', 1)[0] 
     extension = object_name.split('.')[-1]
     full_image_url = f"https://res.cloudinary.com/{cloud_name}/image/upload/{public_id}.{extension}"
@@ -72,8 +69,6 @@ def create_picture_upload_url(
     return {
         "url": response["url"],
         "fields": response["fields"],
-        # DİKKAT: Burayı object_name değil, full_image_url yapıyoruz.
-        # Böylece Frontend bunu alıp 'updateUserProfile' dediğinde veritabanına çalışan link yazılacak.
         "file_path": full_image_url 
     }
 # ===============================================================================
@@ -90,6 +85,12 @@ def create_user(request: Request, user: UserCreate, db: Session = Depends(get_db
     db_user_by_phone = user_crud.get_user_by_phone_number(db, phone_number=user.phone_number)
     if db_user_by_phone:
         raise HTTPException(status_code=400, detail="Bu telefon numarası zaten kayıtlı.")
+    
+    # Not: Kullanıcı oluşturma (Sign Up) loglamasını genelde Auth router'da
+    # veya burada yapabiliriz. Auth router'da Login logu var. 
+    # Burada create_user sonrası otomatik login olmadığı için loglamayı şimdilik pas geçiyoruz 
+    # veya isteğe bağlı ekleyebiliriz.
+    
     return user_crud.create_user(db=db, user=user)
 
 @router.get("/me", response_model=UserSchema)
@@ -105,7 +106,22 @@ def update_current_user(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
 ):
-    return user_crud.update_user(db=db, user_id=current_user.id, user_update=user_update)
+    updated_user = user_crud.update_user(db=db, user_id=current_user.id, user_update=user_update)
+    
+    # --- LOGLAMA: PROFİL GÜNCELLENDİ ---
+    audit_crud.create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="PROFILE_UPDATED",
+        target_entity="users",
+        target_id=str(current_user.id),
+        details="Kullanıcı profil bilgilerini güncelledi.",
+        ip_address=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
+    # -----------------------------------
+    
+    return updated_user
 
 @router.put("/me/password", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("5/15minute")
@@ -117,7 +133,22 @@ def change_current_user_password(
 ):
     if not user_crud.verify_password(password_update.current_password, current_user.password_hash):
         raise HTTPException(status_code=400, detail="Incorrect current password")
+    
     user_crud.update_user_password(db, user=current_user, new_password=password_update.new_password)
+    
+    # --- LOGLAMA: ŞİFRE DEĞİŞTİRİLDİ ---
+    audit_crud.create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="PASSWORD_CHANGED",
+        target_entity="users",
+        target_id=str(current_user.id),
+        details="Kullanıcı şifresini değiştirdi.",
+        ip_address=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
+    # -----------------------------------
+    
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

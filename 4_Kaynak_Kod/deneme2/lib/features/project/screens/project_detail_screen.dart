@@ -1,20 +1,24 @@
-// lib/features/project/screens/project_detail_screen.dart (TAM GÜNCEL HALİ)
-
+import 'package:deneme2/features/project/screens/project_aplicants_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
+// Widget'lar
 import '../../../common_widgets/status_chip.dart';
+import '../widgets/application_dialog.dart';
+
+// Ekranlar
+import 'project_edit_screen.dart'; // <-- DÜZENLEME EKRANI İMPORTU
+import '../../profile/screens/submit_review_screen.dart';
+
+// Provider ve Modeller
 import '../../../core/providers/application_provider.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/project_provider.dart';
 import '../../../data/models/enums.dart';
 import '../../../data/models/project_model.dart';
 import '../../../data/models/skill_model.dart';
-import '../widgets/application_dialog.dart';
-import '../../profile/screens/submit_review_screen.dart';
-import 'project_aplicants_screen.dart';
 
 class ProjectDetailScreen extends StatelessWidget {
   final Project project;
@@ -63,10 +67,12 @@ class ProjectDetailScreen extends StatelessWidget {
             child: BackButton(color: theme.colorScheme.onSurface),
           ),
         ),
+        // === FİRMA YÖNETİM MENÜSÜ ===
         actions: [
           if (isOwner)
-            _buildOwnerMenu(context, project.id),
+            _buildOwnerMenu(context, project),
         ],
+        // =============================
       ),
       body: CustomScrollView(
         slivers: [
@@ -109,7 +115,7 @@ class ProjectDetailScreen extends StatelessWidget {
             ),
           ),
 
-          // Alt barın içeriği kapatmaması için boşluk
+          // --- REVIZYON GEÇMİŞİ ---
           if (project.revisions.isNotEmpty)
             SliverToBoxAdapter(
               child: Padding(
@@ -204,6 +210,7 @@ class ProjectDetailScreen extends StatelessWidget {
 
   // --- YARDIMCI WIDGET'LAR ---
 
+  // 1. HEADER (Başlık Alanı)
   Widget _buildHeader(BuildContext context, Project project) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -255,6 +262,7 @@ class ProjectDetailScreen extends StatelessWidget {
     );
   }
 
+  // 2. BİLGİ KUTUCUKLARI
   Widget _buildInfoSection(BuildContext context, Project project) {
     final currencyFormat = NumberFormat.currency(locale: 'tr_TR', symbol: '₺');
     String budgetText;
@@ -300,7 +308,7 @@ class ProjectDetailScreen extends StatelessWidget {
     );
   }
 
-  // --- GÜNCELLENMİŞ YETENEK LİSTESİ ---
+  // 3. YETENEK LİSTESİ
   Widget _buildSkillsWrap(BuildContext context, List<Skill> skills) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -349,101 +357,8 @@ class ProjectDetailScreen extends StatelessWidget {
       ),
     );
   }
-  // ------------------------------------
-  Widget _buildOwnerMenu(BuildContext context, String projectId) {
-    final theme = Theme.of(context);
-    return PopupMenuButton<String>(
-      icon: CircleAvatar(
-        backgroundColor: theme.brightness == Brightness.dark
-            ? Colors.black.withOpacity(0.3)
-            : Colors.white.withOpacity(0.5),
-        child: Icon(
-          Icons.more_vert,
-          color: theme.colorScheme.onSurface,
-        ),
-      ),
-      onSelected: (value) {
-        if (value == 'edit') {
-          // Düzenleme ekranına git
-          // NOT: Buraya özel bir ProjectEditScreen yapısı gerekecek.
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Düzenleme Ekranı entegre edilecek.")),
-          );
-        } else if (value == 'delete') {
-          _showDeleteConfirmationDialog(context, projectId);
-        }
-      },
-      itemBuilder: (context) => [
-        const PopupMenuItem<String>(
-          value: 'edit',
-          child: Row(
-            children: [
-              Icon(Icons.edit_outlined),
-              SizedBox(width: 8),
-              Text('Projeyi Düzenle'),
-            ],
-          ),
-        ),
-        const PopupMenuItem<String>(
-          value: 'delete',
-          child: Row(
-            children: [
-              Icon(Icons.delete_outline, color: Colors.red),
-              SizedBox(width: 8),
-              Text('Projeyi Sil', style: TextStyle(color: Colors.red)),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
-/// lib/features/project/screens/project_detail_screen.dart dosyasının en altındaki fonksiyonu güncelle:
-
-  void _showDeleteConfirmationDialog(BuildContext context, String projectId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Proje Silme Onayı'),
-        content: const Text(
-            'Bu projeyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz ve tüm başvurular silinecektir.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('İptal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () async {
-              // 1. Önce Diyaloğu kapat
-              Navigator.pop(context);
-
-              // 2. Silme işlemini başlat
-              final success = await context.read<ProjectProvider>().deleteProject(projectId);
-
-              if (context.mounted) {
-                if (success) {
-                  // === KRİTİK EKLEME ===
-                  // 3. İşlem başarılıysa DETAY EKRANINI DA KAPAT (Geri Dön)
-                  Navigator.of(context).pop();
-                  // =====================
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Proje başarıyla silindi!')),
-                  );
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Silme işlemi başarısız oldu.')),
-                  );
-                }
-              }
-            },
-            child: const Text('Sil', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
+  // 4. AKSİYON BUTONLARI
   Widget _buildActionButtons(
       BuildContext context, {
         required bool isOwner,
@@ -470,7 +385,6 @@ class ProjectDetailScreen extends StatelessWidget {
             projectId: project.id, projectTitle: project.title),
       ));
     }
-    // --- YENİ EKLENEN KISIM: REVIZYON / ONAY MANTIĞI ---
     // 2. Firma: İnceleme Bekleniyor (Teslim Edilmiş)
     else if (isOwner && project.status == ProjectStatus.pending_review) {
       buttonText = 'Teslimatı Değerlendir';
@@ -523,8 +437,6 @@ class ProjectDetailScreen extends StatelessWidget {
         );
       };
     }
-    // -------------------------------------------------
-
     // 3. Freelancer: Teslim Et (Devam Ediyor)
     else if (isFreelancer && project.status == ProjectStatus.in_progress) {
       buttonText = 'Projeyi Teslim Et';
@@ -547,7 +459,6 @@ class ProjectDetailScreen extends StatelessWidget {
         }
       };
     }
-
     // 4. Freelancer: Başvur
     else if (isFreelancer && isProjectOpen && !hasAlreadyApplied) {
       buttonText = 'Projeye Başvur';
@@ -557,7 +468,6 @@ class ProjectDetailScreen extends StatelessWidget {
         builder: (context) => ApplicationDialog(projectId: project.id),
       );
     }
-
     // 5. Herkes: Değerlendir (Tamamlandı)
     else if (canReview && !hasAlreadyReviewed) {
       buttonText = 'Değerlendirme Yap';
@@ -583,8 +493,7 @@ class ProjectDetailScreen extends StatelessWidget {
         }
       };
     }
-
-    // 6. Pasif Durumlar (Başvuruldu, Bekleniyor vs.)
+    // 6. Pasif Durumlar
     else if (isFreelancer && isProjectOpen && hasAlreadyApplied) {
       buttonText = 'Başvurunuz Gönderildi';
       buttonIcon = Icons.check_circle_outline;
@@ -620,7 +529,106 @@ class ProjectDetailScreen extends StatelessWidget {
     return const SizedBox.shrink();
   }
 
-  // === YENİ FONKSİYON: REVIZYON DİYALOĞU ===
+  // --- FİRMA YÖNETİM MENÜSÜ ---
+  Widget _buildOwnerMenu(BuildContext context, Project project) {
+    final theme = Theme.of(context);
+    return PopupMenuButton<String>(
+      icon: CircleAvatar(
+        backgroundColor: theme.brightness == Brightness.dark
+            ? Colors.black.withOpacity(0.3)
+            : Colors.white.withOpacity(0.5),
+        child: Icon(
+          Icons.more_vert,
+          color: theme.colorScheme.onSurface,
+        ),
+      ),
+      onSelected: (value) async {
+        if (value == 'edit') {
+          // Düzenleme ekranına git
+          final result = await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => ProjectEditScreen(project: project),
+            ),
+          );
+
+          // Eğer güncelleme başarılı olduysa ekranı yenilemek için geri dön
+          if (result == true && context.mounted) {
+            Navigator.of(context).pop();
+          }
+        } else if (value == 'delete') {
+          _showDeleteConfirmationDialog(context, project.id);
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem<String>(
+          value: 'edit',
+          child: Row(
+            children: [
+              Icon(Icons.edit_outlined),
+              SizedBox(width: 8),
+              Text('Projeyi Düzenle'),
+            ],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'delete',
+          child: Row(
+            children: [
+              Icon(Icons.delete_outline, color: Colors.red),
+              SizedBox(width: 8),
+              Text('Projeyi Sil', style: TextStyle(color: Colors.red)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- SİLME ONAY DİYALOĞU ---
+  void _showDeleteConfirmationDialog(BuildContext context, String projectId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Proje Silme Onayı'),
+        content: const Text(
+            'Bu projeyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz ve tüm başvurular silinecektir.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('İptal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              // 1. Diyaloğu kapat
+              Navigator.pop(context);
+
+              // 2. Silme işlemini başlat
+              final success = await context.read<ProjectProvider>().deleteProject(projectId);
+
+              if (context.mounted) {
+                if (success) {
+                  // 3. Başarılıysa Detay ekranını da kapat (Geri Dön)
+                  Navigator.of(context).pop();
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Proje başarıyla silindi!')),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Silme işlemi başarısız oldu.')),
+                  );
+                }
+              }
+            },
+            child: const Text('Sil', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- REVIZYON DİYALOĞU ---
   void _showRevisionDialog(BuildContext context, String projectId) {
     final reasonController = TextEditingController();
     showDialog(
@@ -657,8 +665,6 @@ class ProjectDetailScreen extends StatelessWidget {
               final reason = reasonController.text.trim();
               if (reason.isNotEmpty) {
                 Navigator.pop(context); // Dialog'u kapat
-                // Provider üzerinden API çağrısı (reason parametresiyle)
-                // NOT: requestRevision fonksiyonunu reason alacak şekilde güncellemeliyiz.
                 context.read<ProjectProvider>().requestRevision(projectId, reason);
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -674,6 +680,7 @@ class ProjectDetailScreen extends StatelessWidget {
   }
 }
 
+// --- BİLGİ TILE WIDGET'I ---
 class _InfoTile extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -687,15 +694,10 @@ class _InfoTile extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // --- DÜZELTME: Expanded KALDIRILDI ---
-    // Wrap içinde Expanded kullanılamaz. Bunun yerine Container'a
-    // esnek bir genişlik verebiliriz veya içeriği kadar yer kaplamasını sağlarız.
-    // En temizi, ekranın yarısını kaplayacak şekilde ayarlamak.
-
-    final width = (MediaQuery.of(context).size.width - 48) / 2; // 2 sütunlu yapı için
+    final width = (MediaQuery.of(context).size.width - 48) / 2;
 
     return Container(
-      width: width, // Sabit genişlik
+      width: width,
       padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
         color: isDark ? Colors.grey.shade800.withOpacity(0.5) : Colors.white,
@@ -703,7 +705,7 @@ class _InfoTile extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade300.withOpacity(0.5)),
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min, // İçeriği kadar yükseklik
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, color: theme.colorScheme.primary, size: 24),
           const SizedBox(height: 8),
@@ -713,13 +715,12 @@ class _InfoTile extends StatelessWidget {
           const SizedBox(height: 4),
           Text(value,
               textAlign: TextAlign.center,
-              maxLines: 2, // Çok uzun metinleri sınırla
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.titleSmall
                   ?.copyWith(fontWeight: FontWeight.bold)),
         ],
       ),
     );
-    // -------------------------------------
   }
 }

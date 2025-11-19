@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../common_widgets/loading_indicator.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/message_provider.dart';
 import '../../../core/services/api_service.dart';
 import '../../../data/models/message_model.dart';
 import '../../../data/models/user_summary_model.dart';
@@ -170,6 +171,13 @@ class _ChatScreenState extends State<ChatScreen> {
         _messages.add(sentMessage);
       });
       _scrollToBottom();
+
+      // === EKLENEN KISIM: ANA LİSTEYİ GÜNCELLE ===
+      // Mesaj gönderildiğinde, sohbet listesi (MessageListScreen) de güncellenmeli.
+      if (mounted) {
+        Provider.of<MessageProvider>(context, listen: false).fetchConversations();
+      }
+      // ===========================================
     }
     setState(() => _isSending = false);
   }

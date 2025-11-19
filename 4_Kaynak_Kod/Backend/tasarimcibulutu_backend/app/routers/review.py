@@ -1,20 +1,20 @@
 # app/routers/review.py
 
 import uuid
-# --- YENİ İMPORTLAR ---
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from slowapi import Limiter
 from slowapi.util import get_remote_address
-# --- BİTTİ ---
 from sqlalchemy.orm import Session
 from typing import List
 
 from app import crud, models, schemas
 from app.dependencies import get_db, get_current_user
 
-# --- BU ROUTER'A ÖZEL LIMITER BAŞLATMA ---
+# --- LOGLAMA İÇİN YENİ IMPORT ---
+from app.crud import audit as audit_crud
+# --------------------------------
+
 limiter = Limiter(key_func=get_remote_address)
-# --- BİTTİ ---
 
 router = APIRouter(
     prefix="/reviews",
@@ -42,7 +42,7 @@ def create_review(
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
     
-    if project.status != models.ProjectStatus.COMPLETED:
+    if project.status.value != models.ProjectStatus.COMPLETED.value:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Reviews can only be submitted for completed projects."
@@ -72,4 +72,20 @@ def create_review(
             detail="You have already submitted a review for this project."
         )
 
-    return crud.review.create_review(db=db, review=review, reviewer_id=reviewer_id)
+    new_review = crud.review.create_review(db=db, review=review, reviewer_id=reviewer_id)
+
+    # --- LOGLAMA: DEĞERLENDİRME YAPILDI ---
+    if new_review:
+        audit_crud.create_audit_log(
+            db=db,
+            user_id=current_user.id,
+            action="REVIEW_SUBMITTED",
+            target_entity="reviews",
+            target_id=str(new_review.id),
+            details=f"Proje ({new_review.project_id}) için {new_review.rating} puanlık değerlendirme yapıldı.",
+            ip_address=request.client.host,
+            user_agent=request.headers.get("user-agent")
+        )
+    # ---------------------------------------
+
+    return new_review

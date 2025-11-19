@@ -1,14 +1,14 @@
 # routers/auth.py
-
 from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from jose import JWTError, jwt
-import requests # <--- EKSİK OLAN IMPORT BURAYA EKLENDİ
+import requests 
 
 from app import database, security
 from app.crud import user as user_crud
+from app.crud import audit as audit_crud # <--- YENİ IMPORT: Loglama CRUD'u
 from app.schemas.token import Token, RefreshTokenRequest, TokenData 
 from app.schemas.user import PasswordRecoveryRequest, PasswordResetRequest
 from app.config import settings
@@ -35,11 +35,34 @@ def get_db():
 def login_for_access_token(request: Request, db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
     user = user_crud.authenticate_user(db, email=form_data.username, password=form_data.password)
     if not user:
+        # --- (Opsiyonel) Başarısız Giriş Logu ---
+        # audit_crud.create_audit_log(
+        #     db=db,
+        #     action="LOGIN_FAILED",
+        #     details=f"Failed login attempt for email: {form_data.username}",
+        #     ip_address=request.client.host,
+        #     user_agent=request.headers.get("user-agent")
+        # )
+        # ----------------------------------------
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    # --- BAŞARILI GİRİŞ LOGU ---
+    audit_crud.create_audit_log(
+        db=db,
+        user_id=user.id,
+        action="LOGIN_SUCCESS",
+        target_entity="users",
+        target_id=str(user.id),
+        details="Kullanıcı başarıyla giriş yaptı.",
+        ip_address=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
+    # ---------------------------
+
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = security.create_access_token(
         data={"sub": user.email}, expires_delta=access_token_expires

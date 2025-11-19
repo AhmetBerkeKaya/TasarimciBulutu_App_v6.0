@@ -1,5 +1,7 @@
 // lib/features/messages/screens/message_list_screen.dart (GÜNCEL)
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
@@ -20,18 +22,31 @@ class MessageListScreen extends StatefulWidget {
 
 class _MessageListScreenState extends State<MessageListScreen> {
   final _searchController = TextEditingController();
+  Timer? _refreshTimer; // <-- EKLENDİ
 
   @override
   void initState() {
     super.initState();
+    // İlk yükleme
     Future.microtask(() =>
         Provider.of<MessageProvider>(context, listen: false).fetchConversations()
     );
+
+    // === EKLENEN KISIM: PERİYODİK YENİLEME ===
+    // Her 10 saniyede bir sohbet listesini yenile (Yeni mesaj var mı diye bak)
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+      if (mounted) {
+        // Sessizce güncelle (Loading göstermeden)
+        Provider.of<MessageProvider>(context, listen: false).fetchConversations(silent: true);
+      }
+    });
+    // =========================================
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _refreshTimer?.cancel(); // <-- EKLENDİ: Timer'ı kapatmayı unutma
     super.dispose();
   }
 

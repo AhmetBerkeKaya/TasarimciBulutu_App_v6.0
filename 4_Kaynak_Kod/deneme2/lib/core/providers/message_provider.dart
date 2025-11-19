@@ -26,23 +26,39 @@ class MessageProvider with ChangeNotifier {
   bool isSelected(String id) => _selectedConversationIds.contains(id);
 
   // --- VERİ ÇEKME ---
-  Future<void> fetchConversations() async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
+  // Parametreye 'silent' eklendi, varsayılanı false (yani normalde loading gösterir)
+  Future<void> fetchConversations({bool silent = false}) async {
+    // Eğer sessiz değilse loading'i aç
+    if (!silent) {
+      _isLoading = true;
+      _errorMessage = null;
+      notifyListeners();
+    }
 
     try {
       final data = await _apiService.getConversations();
+
+      // Veri değişti mi kontrolü yapabiliriz ama şimdilik direkt atayalım.
       _conversations = data;
-      _filteredConversations = data; // Başlangıçta hepsi görünür
+
+      // Eğer arama yapılmıyorsa (arama kutusu boşsa), filtreli listeyi de güncelle
+      // (Arama yaparken liste aniden değişmesin diye kontrol edebiliriz, şimdilik direkt güncelliyoruz)
+      _filteredConversations = data;
+
     } catch (e) {
-      _errorMessage = "Mesajlar yüklenemedi.";
-      _conversations = [];
-      _filteredConversations = [];
+      // Sessiz modda hata olsa bile kullanıcıya gösterme, sessizce geç.
+      if (!silent) {
+        _errorMessage = "Mesajlar yüklenemedi.";
+        _conversations = [];
+        _filteredConversations = [];
+      }
     }
 
-    _isLoading = false;
-    notifyListeners();
+    // İşlem bitti
+    if (!silent) {
+      _isLoading = false;
+    }
+    notifyListeners(); // Her durumda UI güncellensin (yeni mesaj varsa görünsün)
   }
 
   // --- ARAMA ---
