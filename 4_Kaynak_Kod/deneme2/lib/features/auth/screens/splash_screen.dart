@@ -1,6 +1,6 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart'; // <-- SVG paketini import et
+import 'package:flutter_svg/flutter_svg.dart';
+import '../../../core/theme/app_theme.dart'; // Temayı import ettik
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -25,6 +25,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       curve: Curves.easeIn,
     );
     _animationController.forward();
+
+    // NOT: Yönlendirme mantığı (Navigate) muhtemelen main.dart veya
+    // burada bir Listener içinde yapılıyor, o kısma dokunmadım.
   }
 
   @override
@@ -35,16 +38,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    // Tema moduna göre doğru gradienti seçiyoruz
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final gradient = isDark ? AppTheme.darkPrimaryGradient : AppTheme.lightPrimaryGradient;
+
     return Scaffold(
       body: Container(
-        // Şık bir gradyan arka plan
+        width: double.infinity,
+        height: double.infinity,
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [theme.primaryColor.withOpacity(0.8), theme.primaryColor],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          gradient: gradient, // AppTheme'deki profesyonel gradienti kullandık
         ),
         child: Center(
           child: FadeTransition(
@@ -52,18 +55,16 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // SVG logomuzu burada kullanıyoruz
                 SvgPicture.asset(
                   'assets/svgs/logo.svg',
                   height: 120,
-                  // Gradyan üzerinde logonun beyaz görünmesi için
                   colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
                 ),
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   'Tasarımcı Bulutu',
-                  style: TextStyle(
-                    fontSize: 28,
+                  // TextStyle yerine Theme kullanıyoruz ki font ailesi (Manrope) korunsun
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                     letterSpacing: 1.2,
@@ -72,9 +73,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 const SizedBox(height: 8),
                 Text(
                   'Türkiye’nin Tasarım Platformu',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white.withOpacity(0.8),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Colors.white.withOpacity(0.9),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],

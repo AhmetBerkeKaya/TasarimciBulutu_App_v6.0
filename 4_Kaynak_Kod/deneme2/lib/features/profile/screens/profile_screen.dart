@@ -5,12 +5,12 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 
-// Gerekli tüm ekran ve widget'ları import ettiğimizden emin olalım
 import '../../../common_widgets/loading_indicator.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/services/api_service.dart';
 import '../../../data/models/enums.dart';
 import '../../../data/models/user_model.dart';
+import '../../../data/models/skill_model.dart'; // Skill modeli için import
 import '../../../data/models/test_result_model.dart';
 import '../../../common_widgets/pdf_viewer_screen.dart';
 import '../../skill_assessment/screens/skill_test_list_screen.dart';
@@ -25,13 +25,12 @@ import 'settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String? userId;
-  // YENİ: Dışarıdan bu ekranın belirli bir bölüme kaydırılıp kaydırılmayacağını kontrol eden parametre.
   final bool scrollToReviews;
 
   const ProfileScreen({
     super.key,
     this.userId,
-    this.scrollToReviews = false, // Varsayılan olarak kapalı.
+    this.scrollToReviews = false,
   });
 
   @override
@@ -58,20 +57,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     if (_isMyProfile) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Profilim'),
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: theme.scaffoldBackgroundColor,
           elevation: 0,
           actions: [
             IconButton(
-              icon: const Icon(Icons.settings_outlined),
+              icon: Icon(Icons.settings_outlined, color: theme.colorScheme.onSurface),
               tooltip: 'Ayarlar',
               onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const SettingsScreen())),
             ),
             IconButton(
-              icon: const Icon(Icons.logout),
+              icon: Icon(Icons.logout, color: theme.colorScheme.error),
               tooltip: 'Çıkış Yap',
               onPressed: () => Provider.of<AuthProvider>(context, listen: false).logout(),
             ),
@@ -144,6 +145,8 @@ class _ProfileBodyState extends State<_ProfileBody> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return SingleChildScrollView(
       controller: _scrollController,
       child: Column(
@@ -160,7 +163,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
                   title: 'Hakkımda',
                   actionButton: widget.isMyProfile
                       ? IconButton(
-                    icon: const Icon(Icons.edit_outlined),
+                    icon: Icon(Icons.edit_outlined, color: theme.primaryColor),
                     onPressed: () async {
                       final bool? result = await Navigator.of(context).push<bool>(
                         MaterialPageRoute(builder: (context) => const EditProfileScreen()),
@@ -173,10 +176,12 @@ class _ProfileBodyState extends State<_ProfileBody> {
                       : null,
                   child: Text(
                     widget.user.bio?.isNotEmpty ?? false ? widget.user.bio! : 'Henüz bir biyografi eklenmemiş.',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.5, color: Colors.grey.shade700),
+                    style: theme.textTheme.bodyLarge?.copyWith(height: 1.5, color: theme.colorScheme.onSurfaceVariant),
                   ),
                 ),
                 const SizedBox(height: 16),
+
+                // ... Değerlendirmeler Bölümü (Aynı kalacak) ...
                 KeyedSubtree(
                   key: _reviewsKey,
                   child: _buildSection(
@@ -190,7 +195,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            Text(widget.user.avgRating.toStringAsFixed(1), style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.amber, fontWeight: FontWeight.bold)),
+                            Text(widget.user.avgRating.toStringAsFixed(1), style: theme.textTheme.headlineMedium?.copyWith(color: Colors.amber, fontWeight: FontWeight.bold)),
                             const SizedBox(width: 8),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -201,7 +206,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
                                   itemCount: 5,
                                   itemSize: 20.0,
                                 ),
-                                Text('(${widget.user.reviewCount} değerlendirme)', style: Theme.of(context).textTheme.bodySmall),
+                                Text('(${widget.user.reviewCount} değerlendirme)', style: theme.textTheme.bodySmall),
                               ],
                             ),
                           ],
@@ -213,6 +218,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
                           Center(
                             child: TextButton(
                               onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => AllReviewsScreen(userId: widget.user.id, userName: widget.user.name))),
+                              style: TextButton.styleFrom(foregroundColor: theme.primaryColor),
                               child: Text('Tüm ${widget.user.reviewCount} Değerlendirmeyi Gör'),
                             ),
                           )
@@ -221,16 +227,21 @@ class _ProfileBodyState extends State<_ProfileBody> {
                     ),
                   ),
                 ),
+
                 if (widget.user.role == UserRole.freelancer) ...[
                   const SizedBox(height: 16),
                   _buildSection(
                     context,
                     icon: Icons.lightbulb_outline_rounded,
                     title: 'Yetenekler',
-                    actionButton: widget.isMyProfile ? IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageSkillsScreen()))) : null,
+                    actionButton: widget.isMyProfile
+                        ? IconButton(icon: Icon(Icons.edit_outlined, color: theme.primaryColor), onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageSkillsScreen())))
+                        : null,
+                    // --- DEĞİŞİKLİK BURADA: Genişletilebilir Widget Kullanıyoruz ---
                     child: widget.user.skills.isEmpty
                         ? const Text('Henüz yetenek eklenmemiş.')
-                        : Wrap(spacing: 8.0, runSpacing: 8.0, children: widget.user.skills.map((skill) => Chip(label: Text(skill.name))).toList()),
+                        : _ExpandableSkillWrap(skills: widget.user.skills),
+                    // -------------------------------------------------------------
                   ),
                   if (widget.isMyProfile) ...[
                     const SizedBox(height: 16),
@@ -243,7 +254,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
                         children: [
                           Text(
                             'Yetkinliklerinizi platform onaylı testler ile kanıtlayarak profilinizi güçlendirin ve projelerde bir adım öne çıkın.',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                            style: theme.textTheme.bodyMedium,
                           ),
                           const SizedBox(height: 16),
                           ElevatedButton(
@@ -252,7 +263,14 @@ class _ProfileBodyState extends State<_ProfileBody> {
                                 builder: (context) => const SkillTestListScreen(),
                               ));
                             },
-                            child: const Text('Testleri Görüntüle'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: theme.primaryColor,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: const Text('Testleri Görüntüle', style: TextStyle(fontWeight: FontWeight.bold)),
                           ),
                         ],
                       ),
@@ -263,14 +281,18 @@ class _ProfileBodyState extends State<_ProfileBody> {
                     context,
                     icon: Icons.work_history_outlined,
                     title: 'İş Deneyimi',
-                    actionButton: widget.isMyProfile ? IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageExperienceScreen()))) : null,
+                    actionButton: widget.isMyProfile ? IconButton(icon: Icon(Icons.edit_outlined, color: theme.primaryColor), onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManageExperienceScreen()))) : null,
                     child: widget.user.workExperiences.isEmpty
                         ? const Text('Henüz iş deneyimi eklenmemiş.')
                         : Column(
                       children: widget.user.workExperiences.map((exp) {
                         final formatter = DateFormat('yyyy');
                         final period = '${formatter.format(exp.startDate)} - ${exp.endDate != null ? formatter.format(exp.endDate!) : 'Devam Ediyor'}';
-                        return ListTile(contentPadding: EdgeInsets.zero, title: Text(exp.title, style: const TextStyle(fontWeight: FontWeight.bold)), subtitle: Text('${exp.companyName} • $period'));
+                        return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(exp.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            subtitle: Text('${exp.companyName} • $period')
+                        );
                       }).toList(),
                     ),
                   ),
@@ -279,7 +301,7 @@ class _ProfileBodyState extends State<_ProfileBody> {
                     context,
                     icon: Icons.photo_library_outlined,
                     title: 'Portfolyo',
-                    actionButton: widget.isMyProfile ? IconButton(icon: const Icon(Icons.edit_outlined), onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManagePortfolioScreen()))) : null,
+                    actionButton: widget.isMyProfile ? IconButton(icon: Icon(Icons.edit_outlined, color: theme.primaryColor), onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context) => const ManagePortfolioScreen()))) : null,
                     child: widget.user.portfolioItems.isEmpty
                         ? const Text('Henüz portfolyo öğesi eklenmemiş.')
                         : SizedBox(
@@ -294,6 +316,9 @@ class _ProfileBodyState extends State<_ProfileBody> {
                             width: 160,
                             child: Card(
                               clipBehavior: Clip.antiAlias,
+                              elevation: 2,
+                              shadowColor: Colors.black12,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               child: InkWell(
                                 onTap: () {
                                   if (extension == 'pdf') {
@@ -305,8 +330,27 @@ class _ProfileBodyState extends State<_ProfileBody> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.stretch,
                                   children: [
-                                    Expanded(flex: 3, child: Container(color: Colors.grey.shade200, child: _buildFilePreview(item.imageUrl))),
-                                    Expanded(flex: 1, child: Padding(padding: const EdgeInsets.all(8.0), child: Center(child: Text(item.title, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold))))),
+                                    Expanded(
+                                        flex: 3,
+                                        child: Container(
+                                            color: Colors.grey.shade100,
+                                            child: _buildFilePreview(item.imageUrl, theme)
+                                        )
+                                    ),
+                                    Expanded(
+                                        flex: 1,
+                                        child: Container(
+                                            color: theme.cardColor,
+                                            padding: const EdgeInsets.all(8.0),
+                                            child: Center(
+                                                child: Text(
+                                                    item.title,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.bold)
+                                                )
+                                            )
+                                        )
+                                    ),
                                   ],
                                 ),
                               ),
@@ -325,19 +369,23 @@ class _ProfileBodyState extends State<_ProfileBody> {
     );
   }
 
-  Widget _buildFilePreview(String fileUrl) {
+  // ... (Yardımcı fonksiyonlar aynı: _buildFilePreview, _buildProfileHeader, _buildSection) ...
+  // Bu fonksiyonları zaten önceki dosyada vardı, aynen kalacaklar.
+  Widget _buildFilePreview(String fileUrl, ThemeData theme) {
     final extension = fileUrl.split('.').last.toLowerCase();
     if (['png', 'jpg', 'jpeg', 'gif'].contains(extension)) {
       return Image.network(
         fileUrl,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) => const Center(child: Icon(Icons.broken_image_outlined, color: Colors.grey)),
-        loadingBuilder: (context, child, progress) => progress == null ? child : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        loadingBuilder: (context, child, progress) => progress == null
+            ? child
+            : Center(child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation<Color>(theme.primaryColor))),
       );
     } else if (extension == 'pdf') {
-      return const Center(child: Icon(Icons.picture_as_pdf_rounded, color: Colors.red, size: 40));
+      return const Center(child: Icon(Icons.picture_as_pdf_rounded, color: Colors.redAccent, size: 40));
     } else {
-      return const Center(child: Icon(Icons.insert_drive_file_outlined, color: Colors.grey, size: 40));
+      return Center(child: Icon(Icons.insert_drive_file_outlined, color: theme.primaryColor, size: 40));
     }
   }
 
@@ -360,14 +408,20 @@ class _ProfileBodyState extends State<_ProfileBody> {
           CircleAvatar(
             radius: 50,
             backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-            backgroundImage: user.profilePictureUrl != null && user.profilePictureUrl!.isNotEmpty ? NetworkImage(user.profilePictureUrl!) : null,
-            child: user.profilePictureUrl == null || user.profilePictureUrl!.isEmpty ? Icon(Icons.person, size: 50, color: theme.colorScheme.primary) : null,
+            backgroundImage: user.profilePictureUrl != null && user.profilePictureUrl!.isNotEmpty
+                ? NetworkImage("${user.profilePictureUrl!}?v=${DateTime.now().millisecondsSinceEpoch}")
+                : null,
+            child: user.profilePictureUrl == null || user.profilePictureUrl!.isEmpty
+                ? Icon(Icons.person, size: 50, color: theme.colorScheme.primary)
+                : null,
           ),
           const SizedBox(height: 16),
           Text(user.name, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           Text(user.email, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.secondary)),
           const SizedBox(height: 16),
+
+          // Rozetler
           if (user.testResults.where((r) => r.score != null && r.score! >= 70).isNotEmpty)
             Wrap(
               spacing: 8.0,
@@ -385,12 +439,21 @@ class _ProfileBodyState extends State<_ProfileBody> {
 
   Widget _buildSection(BuildContext context, {required IconData icon, required String title, Widget? actionButton, required Widget child}) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isDark ? Colors.white12 : Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            )
+          ]
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -400,18 +463,91 @@ class _ProfileBodyState extends State<_ProfileBody> {
             children: [
               Row(
                 children: [
-                  Icon(icon, color: theme.colorScheme.primary),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: theme.primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, color: theme.primaryColor, size: 20),
+                  ),
                   const SizedBox(width: 12),
-                  Text(title, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                  Text(title, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold, fontSize: 18)),
                 ],
               ),
               if (actionButton != null) actionButton,
             ],
           ),
-          const Divider(height: 24, thickness: 0.5),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12.0),
+            child: Divider(height: 1, thickness: 1),
+          ),
           child,
         ],
       ),
+    );
+  }
+}
+
+// === YENİ: GENİŞLETİLEBİLİR YETENEK WRAP WIDGET'I ===
+class _ExpandableSkillWrap extends StatefulWidget {
+  final List<Skill> skills;
+  const _ExpandableSkillWrap({required this.skills});
+
+  @override
+  State<_ExpandableSkillWrap> createState() => _ExpandableSkillWrapState();
+}
+
+class _ExpandableSkillWrapState extends State<_ExpandableSkillWrap> {
+  bool _isExpanded = false;
+  static const int _initialCount = 5; // İlk başta kaç tane görünsün
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    // Gösterilecek yetenek listesi (Genişletilmişse hepsi, değilse ilk 5'i)
+    final skillsToShow = _isExpanded || widget.skills.length <= _initialCount
+        ? widget.skills
+        : widget.skills.take(_initialCount).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 8.0,
+          runSpacing: 8.0,
+          children: skillsToShow.map((skill) => Chip(
+            label: Text(skill.name, style: TextStyle(color: theme.primaryColor, fontWeight: FontWeight.w600)),
+            backgroundColor: theme.primaryColor.withOpacity(0.1),
+            side: BorderSide.none,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          )).toList(),
+        ),
+
+        // Eğer yetenek sayısı 5'ten fazlaysa "Daha Fazla / Daha Az" butonunu göster
+        if (widget.skills.length > _initialCount)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: InkWell(
+              onTap: () => setState(() => _isExpanded = !_isExpanded),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _isExpanded ? 'Daha Az Göster' : 'Daha Fazla Göster (${widget.skills.length - _initialCount})',
+                    style: TextStyle(color: theme.primaryColor, fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                  Icon(
+                    _isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                    size: 16,
+                    color: theme.primaryColor,
+                  )
+                ],
+              ),
+            ),
+          )
+      ],
     );
   }
 }

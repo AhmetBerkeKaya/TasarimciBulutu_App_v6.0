@@ -1,10 +1,10 @@
 // lib/features/profile/screens/edit_profile_screen.dart
-import 'dart:io'; // Dosya işlemleri için
+
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart'; // Resim seçmek için
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../core/providers/auth_provider.dart';
-import '../../../data/models/user_model.dart'; // User modeli için
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -18,7 +18,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _nameController;
   late TextEditingController _bioController;
 
-  // YENİ: Yükleme durumunu ve seçilen dosyayı takip etmek için state'ler
   bool _isLoading = false;
   File? _selectedImage;
   final ImagePicker _picker = ImagePicker();
@@ -26,13 +25,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // Sağlayıcıdan mevcut kullanıcı verilerini alıp controller'ları dolduruyoruz.
     final user = Provider.of<AuthProvider>(context, listen: false).user;
     _nameController = TextEditingController(text: user?.name);
     _bioController = TextEditingController(text: user?.bio);
   }
 
-  // YENİ: Galeriden resim seçme fonksiyonu
   Future<void> _pickImage() async {
     final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
 
@@ -48,6 +45,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
+    // Klavye açıksa kapat
+    FocusScope.of(context).unfocus();
+
     setState(() => _isLoading = true);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
@@ -60,7 +60,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     }
 
-    // Resim yükleme başarısız olsa bile diğer bilgileri güncellemeyi deneyebiliriz.
     final profileData = {
       'name': _nameController.text,
       'bio': _bioController.text,
@@ -72,15 +71,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     if (!mounted) return;
 
-    // DEĞİŞİKLİK BURADA: Başarılı olursa geri dönerken 'true' değeri gönderiyoruz.
     if (overallSuccess) {
-      Navigator.of(context).pop(true); // <--- ÖNEMLİ DEĞİŞİKLİK
+      Navigator.of(context).pop(true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profil başarıyla güncellendi!'), backgroundColor: Colors.green),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profil güncellenirken bir veya daha fazla hata oluştu.'), backgroundColor: Colors.red),
+        SnackBar(
+            content: const Text('Profil güncellenirken hata oluştu.'),
+            backgroundColor: Theme.of(context).colorScheme.error
+        ),
       );
     }
 
@@ -96,82 +97,152 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Consumer widget'ı ile AuthProvider'daki anlık kullanıcı verisine ulaşıyoruz.
     final user = Provider.of<AuthProvider>(context).user;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Profili Düzenle'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.save_outlined),
-            tooltip: 'Kaydet',
-            onPressed: _isLoading ? null : _saveProfile,
-          ),
-        ],
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: theme.scaffoldBackgroundColor,
+        foregroundColor: theme.colorScheme.onBackground,
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16.0),
-          children: [
-            // YENİ: Profil resmi değiştirme UI bölümü
-            Center(
-              child: Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 60,
-                    backgroundColor: Colors.grey.shade200,
-                    // Önce seçilen yeni resmi, yoksa mevcut URL'yi göster
-                    backgroundImage: _selectedImage != null
-                        ? FileImage(_selectedImage!) as ImageProvider
-                        : (user?.profilePictureUrl != null && user!.profilePictureUrl!.isNotEmpty
-                        ? NetworkImage(user.profilePictureUrl!)
-                        : null),
-                    child: (_selectedImage == null && (user?.profilePictureUrl == null || user!.profilePictureUrl!.isEmpty))
-                        ? Icon(Icons.person, size: 60, color: Colors.grey.shade400)
-                        : null,
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: CircleAvatar(
-                      radius: 20,
-                      backgroundColor: Theme.of(context).primaryColor,
-                      child: IconButton(
-                        icon: const Icon(Icons.edit, color: Colors.white, size: 20),
-                        onPressed: _pickImage,
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              // --- PROFİL RESMİ ALANI ---
+              Center(
+                child: Stack(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(4), // Halka kalınlığı
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: theme.cardColor,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: CircleAvatar(
+                        radius: 64,
+                        backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                        backgroundImage: _selectedImage != null
+                            ? FileImage(_selectedImage!) as ImageProvider
+                            : (user?.profilePictureUrl != null && user!.profilePictureUrl!.isNotEmpty
+                            ? NetworkImage("${user.profilePictureUrl!}?v=${DateTime.now().millisecondsSinceEpoch}")
+                            : null),
+                        child: (_selectedImage == null && (user?.profilePictureUrl == null || user!.profilePictureUrl!.isEmpty))
+                            ? Icon(Icons.person, size: 64, color: theme.colorScheme.primary)
+                            : null,
                       ),
                     ),
+                    // Düzenleme Butonu
+                    Positioned(
+                      bottom: 0,
+                      right: 4,
+                      child: InkWell(
+                        onTap: _pickImage,
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: theme.primaryColor,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: theme.scaffoldBackgroundColor, width: 3),
+                            boxShadow: [
+                              BoxShadow(
+                                color: theme.primaryColor.withOpacity(0.4),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 20),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 40),
+
+              // --- INPUT ALANLARI ---
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                      "Kişisel Bilgiler",
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: theme.primaryColor)
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _nameController,
+                    // AppTheme'den gelen dekorasyonu kullanıyoruz, border tanımına gerek yok
+                    decoration: const InputDecoration(
+                      labelText: 'Ad Soyad',
+                      prefixIcon: Icon(Icons.person_outline_rounded),
+                    ),
+                    validator: (value) => value!.isEmpty ? 'İsim alanı boş bırakılamaz.' : null,
+                  ),
+                  const SizedBox(height: 24),
+
+                  Text(
+                      "Hakkında",
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: theme.primaryColor)
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _bioController,
+                    decoration: const InputDecoration(
+                      labelText: 'Biyografi',
+                      hintText: 'Kendinizden ve uzmanlık alanlarınızdan bahsedin...',
+                      alignLabelWithHint: true,
+                      prefixIcon: Icon(Icons.info_outline_rounded),
+                    ),
+                    maxLines: 5,
+                    maxLength: 250,
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 24),
-            TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Ad Soyad',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.person_outline),
+
+              const SizedBox(height: 32),
+
+              // --- KAYDET BUTONU ---
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _saveProfile,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 2,
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                  )
+                      : const Text(
+                    'DEĞİŞİKLİKLERİ KAYDET',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1),
+                  ),
+                ),
               ),
-              validator: (value) => value!.isEmpty ? 'İsim alanı boş bırakılamaz.' : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _bioController,
-              decoration: const InputDecoration(
-                labelText: 'Hakkımda (Bio)',
-                alignLabelWithHint: true,
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.info_outline),
-              ),
-              maxLines: 5,
-              maxLength: 250, // Kullanıcıya bir karakter limiti verelim.
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

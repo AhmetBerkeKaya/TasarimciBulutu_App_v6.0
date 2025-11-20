@@ -6,14 +6,13 @@ import 'package:provider/provider.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../data/models/enums.dart';
 
-// Gerekli tüm ekranları import ettiğimizden emin olalım
+// Ekran importları
 import '../../dashboard/screens/dashboard_screen.dart';
 import '../../messages/screens/message_list_screen.dart';
 import '../../profile/screens/profile_screen.dart';
 import '../../project/screens/project_list_screen.dart';
 import '../../showcase/screens/showcase_feed_screen.dart';
 import '../../activity/screens/activity_screen.dart';
-import '../../project/screens/create_project_screen.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -73,23 +72,44 @@ class _HomeScreenState extends State<HomeScreen> {
     final List<Widget> pages = isClient ? _clientPages : _freelancerPages;
     final List<BottomNavigationBarItem> navItems = isClient ? _clientNavItems : _freelancerNavItems;
 
+    // Güvenlik kontrolü: Index liste dışına taşarsa sıfırla
     if (_selectedIndex >= pages.length) {
       _selectedIndex = 0;
     }
+
+    final theme = Theme.of(context);
 
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,
         children: pages,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        items: navItems,
+      bottomNavigationBar: Container(
+        // Hafif bir gölge ekleyerek tab bar'ı içerikten ayıralım (Cila)
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
+          currentIndex: _selectedIndex,
+          onTap: _onItemTapped,
+          items: navItems,
+          // Tema Ayarları (AppTheme ile uyumlu)
+          backgroundColor: theme.bottomNavigationBarTheme.backgroundColor,
+          selectedItemColor: theme.bottomNavigationBarTheme.selectedItemColor,
+          unselectedItemColor: theme.bottomNavigationBarTheme.unselectedItemColor,
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 12),
+          showUnselectedLabels: true,
+          elevation: 0, // Container'da gölge verdiğimiz için burada 0 yapıyoruz
+        ),
       ),
-      // --- DÜZELTME: FloatingActionButton buradan tamamen kaldırıldı ---
-      floatingActionButton: null,
     );
   }
 }

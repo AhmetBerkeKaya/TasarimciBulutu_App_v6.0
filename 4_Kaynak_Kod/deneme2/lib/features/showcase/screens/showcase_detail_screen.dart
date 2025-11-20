@@ -3,13 +3,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:timeago/timeago.dart' as timeago;
-import 'package:share_plus/share_plus.dart'; // YENİ: Paylaşma paketi
+import 'package:share_plus/share_plus.dart';
 
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/showcase_provider.dart';
 import '../../../data/models/showcase_post_model.dart';
 import '../widgets/comment_bottom_sheet.dart';
-import '../widgets/comment_card.dart'; // YENİ: CommentCard'ı import ediyoruz
+import '../widgets/comment_card.dart';
 import '../widgets/post_card.dart';
 
 class ShowcaseDetailScreen extends StatelessWidget {
@@ -20,7 +20,8 @@ class ShowcaseDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final currentUserId = context.read<AuthProvider>().user?.id;
-    final isLikedByMe = post.likes.any((like) => like.userId == currentUserId);
+
+    // PostCard instance'ı oluşturup metodlarını kullanacağız
     final postCard = PostCard(post: post);
     final postContent = postCard.buildContentArea(context, post.thumbnailUrl ?? '');
 
@@ -68,66 +69,85 @@ class ShowcaseDetailScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
               child: Column(
                 children: [
-                  Row(
-                    children: [
-                      if (post.likes.isNotEmpty) Padding(
-                        padding: const EdgeInsets.only(left: 8.0),
-                        child: Text('${post.likes.length} beğeni', style: theme.textTheme.bodySmall),
-                      ),
-                      const Spacer(),
-                      if (post.comments.isNotEmpty) Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: Text('${post.comments.length} yorum', style: theme.textTheme.bodySmall),
-                      ),
-                    ],
+                  // --- DÜZELTME BURADA BAŞLIYOR ---
+                  // İstatistikleri ve Butonları Consumer ile sarmaladık.
+                  // Böylece Provider değişince sadece burası güncellenir.
+                  Consumer<ShowcaseProvider>(
+                    builder: (context, provider, child) {
+                      // Güncel post verisini provider'daki listeden buluyoruz
+                      // Eğer bulamazsak (silinmişse vs) parametre olarak gelen 'post'u kullanırız.
+                      final currentPost = provider.posts.firstWhere(
+                            (p) => p.id == post.id,
+                        orElse: () => post,
+                      );
+
+                      final isLiked = currentPost.likes.any((like) => like.userId == currentUserId);
+                      final likeCount = currentPost.likes.length;
+                      final commentCount = currentPost.comments.length;
+
+                      return Column(
+                        children: [
+                          Row(
+                            children: [
+                              if (likeCount > 0) Padding(
+                                padding: const EdgeInsets.only(left: 8.0),
+                                child: Text('$likeCount beğeni', style: theme.textTheme.bodySmall),
+                              ),
+                              const Spacer(),
+                              if (commentCount > 0) Padding(
+                                padding: const EdgeInsets.only(right: 8.0),
+                                child: Text('$commentCount yorum', style: theme.textTheme.bodySmall),
+                              ),
+                            ],
+                          ),
+                          const Divider(),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              postCard.buildActionButton(
+                                context: context,
+                                icon: isLiked ? Icons.thumb_up_alt_rounded : Icons.thumb_up_alt_outlined,
+                                label: 'Beğen',
+                                color: isLiked ? theme.primaryColor : Colors.grey[700],
+                                onTap: () {
+                                  if (currentUserId != null) {
+                                    provider.toggleLike(post.id, currentUserId);
+                                  }
+                                },
+                              ),
+                              postCard.buildActionButton(
+                                  context: context,
+                                  icon: Icons.comment_outlined,
+                                  label: 'Yorum Yap',
+                                  onTap: () {
+                                    showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      backgroundColor: Colors.transparent,
+                                      builder: (ctx) => CommentBottomSheet(post: currentPost),
+                                    );
+                                  }
+                              ),
+                              postCard.buildActionButton(
+                                  context: context,
+                                  icon: Icons.share_outlined,
+                                  label: 'Paylaş',
+                                  onTap: () {
+                                    final postUrl = "https://tasarimcibulutu.com/showcase/${post.id}";
+                                    Share.share(
+                                      'Tasarımcı Bulutu\'ndaki bu harika projeye göz atın: ${post.title}\n\n$postUrl',
+                                      subject: post.title,
+                                    );
+                                  }
+                              ),
+                            ],
+                          ),
+                        ],
+                      );
+                    },
                   ),
-                  const Divider(),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      postCard.buildActionButton(
-                        context: context,
-                        icon: isLikedByMe ? Icons.thumb_up_alt_rounded : Icons.thumb_up_alt_outlined,
-                        label: 'Beğen',
-                        color: isLikedByMe ? theme.primaryColor : Colors.grey[700],
-                        onTap: () {
-                          if (currentUserId != null) {
-                            Provider.of<ShowcaseProvider>(context, listen: false).toggleLike(post.id, currentUserId);
-                          }
-                        },
-                      ),
-                      postCard.buildActionButton(
-                          context: context,
-                          icon: Icons.comment_outlined,
-                          label: 'Yorum Yap',
-                          onTap: () {
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (ctx) => CommentBottomSheet(post: post),
-                            );
-                          }
-                      ),
-                      // ========================================================
-                      // ===         DÜZELTME: PAYLAŞ BUTONU AKTİF EDİLDİ       ===
-                      // ========================================================
-                      postCard.buildActionButton(
-                          context: context,
-                          icon: Icons.share_outlined,
-                          label: 'Paylaş',
-                          onTap: () {
-                            // TODO: Bu URL'yi projenizin canlıya çıktığındaki web adresiyle değiştirin.
-                            final postUrl = "https://tasarimcibulutu.com/showcase/${post.id}";
-                            Share.share(
-                              'Tasarımcı Bulutu\'ndaki bu harika projeye göz atın: ${post.title}\n\n$postUrl',
-                              subject: post.title,
-                            );
-                          }
-                      ),
-                      // ========================================================
-                    ],
-                  ),
+                  // --- DÜZELTME BURADA BİTİYOR ---
+
                   const Divider(),
                 ],
               ),
@@ -137,39 +157,44 @@ class ShowcaseDetailScreen extends StatelessWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Text(
-                'Yorumlar (${post.comments.length})',
-                style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              child: Consumer<ShowcaseProvider>( // Yorum başlığı için de Consumer ekledik (sayı değişebilir)
+                builder: (context, provider, child) {
+                  final currentPost = provider.posts.firstWhere((p) => p.id == post.id, orElse: () => post);
+                  return Text(
+                    'Yorumlar (${currentPost.comments.length})',
+                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  );
+                },
               ),
             ),
           ),
 
-          // ========================================================
-          // ===        DÜZELTME: YORUM LİSTESİ GÜNCELLENDİ         ===
-          // ========================================================
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                final comment = post.comments[index];
-                // Artık ListTile yerine CommentCard kullanıyoruz.
-                return CommentCard(
-                  postId: post.id,
-                  comment: comment,
-                  // Detay sayfasında yoruma yanıt verme özelliğini CommentBottomSheet'e yönlendirebiliriz.
-                  onReply: (authorName, commentId) {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (ctx) => CommentBottomSheet(post: post),
+          // Yorum Listesi (Burası da güncel veriyi almalı)
+          Consumer<ShowcaseProvider>(
+            builder: (context, provider, child) {
+              final currentPost = provider.posts.firstWhere((p) => p.id == post.id, orElse: () => post);
+              return SliverList(
+                delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                    final comment = currentPost.comments[index];
+                    return CommentCard(
+                      postId: post.id,
+                      comment: comment,
+                      onReply: (authorName, commentId) {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (ctx) => CommentBottomSheet(post: currentPost),
+                        );
+                      },
                     );
                   },
-                );
-              },
-              childCount: post.comments.length,
-            ),
+                  childCount: currentPost.comments.length,
+                ),
+              );
+            },
           ),
-          // ========================================================
         ],
       ),
     );

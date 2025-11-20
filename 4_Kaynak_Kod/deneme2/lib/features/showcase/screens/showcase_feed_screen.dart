@@ -745,17 +745,20 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 48),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+
+            // --- DÜZELTME BURADA: Row yerine Wrap kullanıldı ---
+            Wrap(
+              alignment: WrapAlignment.center, // Ortala
+              spacing: 16.0, // Yatay boşluk
+              runSpacing: 16.0, // Dikey boşluk (alt satıra geçerse)
               children: [
                 _buildModernButton(
                   onPressed: _navigateToCreatePost,
                   icon: Icons.add_rounded,
-                  label: 'İlk Gönderiyi Oluştur',
+                  label: 'İlk Gönderi', // Metni de biraz kısalttım
                   isPrimary: true,
                   theme: theme,
                 ),
-                const SizedBox(width: 16),
                 _buildModernButton(
                   onPressed: () => provider.fetchPosts(),
                   icon: Icons.refresh_rounded,
@@ -765,6 +768,7 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
                 ),
               ],
             ),
+            // --------------------------------------------------
           ],
         ),
       ),

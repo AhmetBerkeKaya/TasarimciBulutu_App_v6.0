@@ -1,4 +1,4 @@
-// lib/features/showcase/screens/create_post_screen.dart (Lansman Sürümü)
+// lib/features/showcase/screens/create_post_screen.dart
 
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -21,13 +21,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   bool _isRevitFileSelected = false;
   File? _selectedFile;
   String? _selectedCategory;
-  final List<String> _selectedSoftware = [];
-  final List<String> _tags = [];
 
-  // Makine öğrenmesi için örnek veriler. Bunlar gelecekte API'den gelmeli.
+  List<String> _selectedSoftware = [];
+  List<String> _tags = [];
+
   final List<String> _categories = ['Makine Tasarımı', 'Mimari Görselleştirme', 'BIM Modelleme', 'Endüstriyel Ürün Tasarımı', 'Kalıpçılık', 'Konsept Sanatı', 'Oyun Varlıkları', 'Ürün Simülasyonu'];
   final List<String> _software = ['AutoCAD', 'Revit', 'SolidWorks', 'Fusion 360', 'Inventor', 'Blender', '3ds Max', 'CATIA', 'Creo', 'NX', 'SketchUp', 'Rhino'];
 
+  // --- GÜNCELLENMİŞ SEÇİM PENCERESİ (Checkbox Sorunu Çözüldü) ---
   Future<T?> _showSelectionSheet<T>({
     required BuildContext context,
     required String title,
@@ -35,17 +36,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     required bool isMultiSelect,
     required List<String> currentlySelected,
   }) async {
+    final theme = Theme.of(context);
+
     return await showModalBottomSheet<T>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        // Arama ve geçici seçimleri yönetmek için StatefulBuilder kullanıyoruz.
+        final List<String> tempSelected = List.from(currentlySelected);
+
         return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
-            String searchQuery = '';
-            final List<String> tempSelected = List.from(currentlySelected);
-            final filteredItems = items.where((item) => item.toLowerCase().contains(searchQuery.toLowerCase())).toList();
+          builder: (BuildContext context, StateSetter setSheetState) {
+            final filteredItems = items;
 
             return DraggableScrollableSheet(
               initialChildSize: 0.6,
@@ -54,85 +56,105 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               builder: (_, scrollController) {
                 return Container(
                   decoration: BoxDecoration(
-                    color: Theme.of(context).cardColor,
+                    color: theme.cardColor,
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                   ),
                   child: Column(
                     children: [
-                      // Header (Başlık ve Kapatma Butonu)
+                      // Başlık
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
+                        padding: const EdgeInsets.fromLTRB(24, 20, 16, 16),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                            IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.close)),
+                            Text(title, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                            IconButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                icon: const Icon(Icons.close)
+                            ),
                           ],
                         ),
                       ),
-                      // Arama Çubuğu
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                        child: TextField(
-                          onChanged: (value) => setState(() => searchQuery = value),
-                          decoration: InputDecoration(
-                            hintText: 'Ara...',
-                            prefixIcon: const Icon(Icons.search),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
+                      const Divider(height: 1),
+
                       // Liste
                       Expanded(
-                        child: filteredItems.isEmpty
-                            ? const Center(child: Text('Sonuç bulunamadı.'))
-                            : ListView.builder(
+                        child: ListView.separated(
                           controller: scrollController,
                           itemCount: filteredItems.length,
+                          separatorBuilder: (ctx, i) => const Divider(height: 1, indent: 16, endIndent: 16),
                           itemBuilder: (context, index) {
                             final item = filteredItems[index];
                             final isSelected = tempSelected.contains(item);
-                            return ListTile(
-                              title: Text(item),
-                              onTap: () {
-                                setState(() {
-                                  if (isMultiSelect) {
-                                    if (isSelected) {
-                                      tempSelected.remove(item);
-                                    } else {
+
+                            // --- ÇOKLU SEÇİM İÇİN CheckboxListTile KULLANIYORUZ ---
+                            if (isMultiSelect) {
+                              return CheckboxListTile(
+                                title: Text(
+                                  item,
+                                  style: TextStyle(
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    color: isSelected ? theme.primaryColor : theme.textTheme.bodyLarge?.color,
+                                  ),
+                                ),
+                                value: isSelected,
+                                activeColor: theme.primaryColor, // Mavi renk
+                                checkColor: Colors.white,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                                onChanged: (bool? value) {
+                                  setSheetState(() {
+                                    if (value == true) {
                                       tempSelected.add(item);
+                                    } else {
+                                      tempSelected.remove(item);
                                     }
-                                  } else {
+                                  });
+                                },
+                              );
+                            }
+                            // --- TEKLİ SEÇİM İÇİN STANDART ListTile ---
+                            else {
+                              return ListTile(
+                                title: Text(
+                                  item,
+                                  style: TextStyle(
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    color: isSelected ? theme.primaryColor : theme.textTheme.bodyLarge?.color,
+                                  ),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 24),
+                                trailing: isSelected
+                                    ? Icon(Icons.radio_button_checked, color: theme.primaryColor)
+                                    : const Icon(Icons.radio_button_unchecked, color: Colors.grey),
+                                onTap: () {
+                                  setSheetState(() {
                                     tempSelected.clear();
                                     tempSelected.add(item);
-                                    // Tekli seçimde seçtikten hemen sonra kapat
+                                    // Tekli seçimde direkt kapat ve sonucu dön
                                     Navigator.of(context).pop(item as T);
-                                  }
-                                });
-                              },
-                              trailing: isMultiSelect
-                                  ? Checkbox(value: isSelected, onChanged: (bool? value) {
-                                setState(() {
-                                  if (value == true) {
-                                    tempSelected.add(item);
-                                  } else {
-                                    tempSelected.remove(item);
-                                  }
-                                });
-                              })
-                                  : (isSelected ? Icon(Icons.check, color: Theme.of(context).primaryColor) : null),
-                            );
+                                  });
+                                },
+                              );
+                            }
                           },
                         ),
                       ),
-                      // Onay Butonu (Sadece çoklu seçim için)
+
+                      // Sadece çoklu seçimde "Tamamla" butonu göster
                       if (isMultiSelect)
                         Padding(
                           padding: const EdgeInsets.all(16.0),
                           child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
-                            onPressed: () => Navigator.of(context).pop(tempSelected as T),
-                            child: const Text('Tamam'),
+                            style: ElevatedButton.styleFrom(
+                              minimumSize: const Size(double.infinity, 56),
+                              backgroundColor: theme.primaryColor,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                            onPressed: () {
+                              Navigator.of(context).pop(tempSelected as T);
+                            },
+                            child: const Text('Seçimi Tamamla', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                           ),
                         ),
                     ],
@@ -145,6 +167,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       },
     );
   }
+
   Future<void> _pickFile() async {
     try {
       FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.any);
@@ -159,15 +182,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         if (fileExtension != null && allowedExtensions.contains(fileExtension)) {
           setState(() {
             _selectedFile = File(result.files.single.path!);
-            // YENİ: Seçilen dosyanın Revit olup olmadığını kontrol et
             _isRevitFileSelected = (fileExtension == 'rvt');
           });
         } else {
-          _showSnackBar('Desteklenmeyen dosya formatı. Lütfen desteklenen bir 3D model dosyası seçin.', isSuccess: false);
+          _showSnackBar('Desteklenmeyen dosya formatı.', isSuccess: false);
         }
       }
     } catch (e) {
-      _showSnackBar('Dosya seçilirken bir hata oluştu: $e', isSuccess: false);
+      _showSnackBar('Hata: $e', isSuccess: false);
     }
   }
 
@@ -189,12 +211,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       return;
     }
     if (_selectedCategory == null) {
-      _showSnackBar('Lütfen bir proje kategorisi seçin.', isSuccess: false);
+      _showSnackBar('Lütfen bir kategori seçin.', isSuccess: false);
       return;
     }
 
     final provider = context.read<ShowcaseProvider>();
-    // TODO: Backend ve Provider'ı yeni alanları (category, software, tags) alacak şekilde güncelle.
+
     final success = await provider.createPost(
       title: _titleController.text.trim(),
       description: _descriptionController.text.trim(),
@@ -205,10 +227,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     );
 
     if (mounted && success) {
-      _showSnackBar('Gönderiniz işlenmek üzere alındı! Kısa süre içinde vitrinde görünecektir.', isSuccess: true);
+      _showSnackBar('Gönderiniz başarıyla paylaşıldı!', isSuccess: true);
       Navigator.of(context).pop();
     } else if (mounted) {
-      _showSnackBar(provider.errorMessage ?? 'Gönderi oluşturulurken bir hata oluştu.', isSuccess: false);
+      _showSnackBar(provider.errorMessage ?? 'Hata oluştu.', isSuccess: false);
     }
   }
 
@@ -216,7 +238,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(message),
-      backgroundColor: isSuccess ? Colors.green[600] : Theme.of(context).colorScheme.error,
+      backgroundColor: isSuccess ? Colors.green : Theme.of(context).colorScheme.error,
       behavior: SnackBarBehavior.floating,
     ));
   }
@@ -227,7 +249,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Yeni Vitrin Projesi"),
-        backgroundColor: theme.scaffoldBackgroundColor,
       ),
       body: Column(
         children: [
@@ -239,6 +260,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ADIM 1
                     _buildStepHeader(1, 'Proje Detayları', 'Projenize dikkat çekici bir başlık ve açıklama ekleyin.', theme),
                     TextFormField(
                       controller: _titleController,
@@ -253,11 +275,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     ),
                     const SizedBox(height: 32),
 
+                    // ADIM 2
                     _buildStepHeader(2, 'Proje Dosyası', 'Sergilemek istediğiniz 3D model dosyasını (.obj) yükleyin.', theme),
-                    _buildFilePicker(),
+                    _buildFilePicker(theme),
                     const SizedBox(height: 32),
 
+                    // ADIM 3
                     _buildStepHeader(3, 'Projenizi Kategorize Edin', 'Doğru kitleye ulaşmak için projenizi tanımlayın.', theme),
+
                     _buildSelectionButton(
                       context: context,
                       title: 'Proje Kategorisi*',
@@ -277,6 +302,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       },
                     ),
                     const SizedBox(height: 24),
+
                     _buildSelectionButton(
                       context: context,
                       title: 'Kullanılan Yazılımlar (Opsiyonel)',
@@ -291,11 +317,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                           currentlySelected: _selectedSoftware,
                         );
                         if (result != null) {
-                          setState(() => _selectedSoftware.replaceRange(0, _selectedSoftware.length, result));
+                          setState(() => _selectedSoftware = result);
                         }
                       },
                     ),
                     const SizedBox(height: 24),
+
                     Text('Etiketler (Opsiyonel)', style: theme.textTheme.titleMedium),
                     const SizedBox(height: 8),
                     _buildTagsInput(theme),
@@ -335,22 +362,19 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     );
   }
 
-  Widget _buildFilePicker() {
-    // ========================================================================
-    // ===       DEĞİŞİKLİK: Dinamik uyarıyı göstermek için güncellendi       ===
-    // ========================================================================
+  Widget _buildFilePicker(ThemeData theme) {
     return Column(
       children: [
         if (_selectedFile != null)
           Card(
-            color: Theme.of(context).primaryColor.withOpacity(0.05),
+            color: theme.primaryColor.withOpacity(0.05),
+            margin: EdgeInsets.zero,
             child: ListTile(
               leading: const Icon(Icons.check_circle, color: Colors.green, size: 32),
               title: Text(path.basename(_selectedFile!.path), style: const TextStyle(fontWeight: FontWeight.bold)),
               subtitle: Text('${(_selectedFile!.lengthSync() / 1024 / 1024).toStringAsFixed(2)} MB'),
               trailing: IconButton(
                 icon: const Icon(Icons.close, color: Colors.red),
-                // YENİ: Dosya kaldırıldığında Revit bayrağını da sıfırla
                 onPressed: () => setState(() {
                   _selectedFile = null;
                   _isRevitFileSelected = false;
@@ -366,21 +390,21 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               height: 120,
               width: double.infinity,
               decoration: BoxDecoration(
-                color: Theme.of(context).scaffoldBackgroundColor,
-                border: Border.all(color: Theme.of(context).dividerColor, style: BorderStyle.solid, width: 2),
+                color: theme.scaffoldBackgroundColor,
+                border: Border.all(color: theme.dividerColor, width: 2),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.upload_file_rounded, size: 40, color: Theme.of(context).colorScheme.primary),
+                  Icon(Icons.upload_file_rounded, size: 40, color: theme.primaryColor),
                   const SizedBox(height: 8),
                   const Text('Dosya Seçmek için Tıklayın'),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8.0),
                     child: Text(
                       'Tüm yaygın CAD formatları desteklenmektedir.',
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: theme.textTheme.bodySmall,
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -389,67 +413,40 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             ),
           ),
 
-        // --- YENİ ANİMASYONLU UYARI WIDGET'I ---
         AnimatedOpacity(
           opacity: _isRevitFileSelected ? 1.0 : 0.0,
           duration: const Duration(milliseconds: 300),
-          child: AnimatedSize(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-            child: _isRevitFileSelected
-                ? Container(
-              margin: const EdgeInsets.only(top: 12.0),
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: Colors.orange[800], size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Not: En iyi sonuçlar için Revit (.rvt) dosyalarının 2015 veya daha yeni bir sürümde kaydedilmiş olması önerilir.',
-                      style: TextStyle(
-                        color: Colors.orange[900],
-                        fontWeight: FontWeight.w500,
-                      ),
+          child: _isRevitFileSelected
+              ? Container(
+            margin: const EdgeInsets.only(top: 12.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange.withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: Colors.orange[800], size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Not: En iyi sonuçlar için Revit (.rvt) dosyalarının 2015 veya daha yeni bir sürümde kaydedilmiş olması önerilir.',
+                    style: TextStyle(
+                      color: Colors.orange[900],
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
-                ],
-              ),
-            )
-                : const SizedBox.shrink(),
-          ),
+                ),
+              ],
+            ),
+          )
+              : const SizedBox.shrink(),
         ),
       ],
     );
   }
 
-  Widget _buildCategorySelector(ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Proje Kategorisi*', style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8.0,
-          runSpacing: 4.0,
-          children: _categories.map((category) {
-            return ChoiceChip(
-              label: Text(category),
-              selected: _selectedCategory == category,
-              onSelected: (selected) {
-                setState(() => _selectedCategory = selected ? category : null);
-              },
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
   Widget _buildSelectionButton({
     required BuildContext context,
     required String title,
@@ -459,12 +456,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     required VoidCallback onTap,
   }) {
     final theme = Theme.of(context);
-    final hasValue = (selectedValue != null && selectedValue.isNotEmpty) || (selectedValues != null && selectedValues.isNotEmpty);
+    final hasValue = (selectedValue != null) || (selectedValues != null && selectedValues.isNotEmpty);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: theme.textTheme.titleMedium),
+        Text(title, style: theme.textTheme.bodyMedium),
         const SizedBox(height: 8),
         InkWell(
           onTap: onTap,
@@ -473,32 +470,30 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade400),
+              border: Border.all(color: theme.dividerColor),
               borderRadius: BorderRadius.circular(12),
+              color: theme.cardColor,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (!hasValue)
-                  Text(placeholder, style: TextStyle(color: Colors.grey.shade600)),
-                if (selectedValue != null)
-                  Chip(
-                    label: Text(selectedValue, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    backgroundColor: theme.primaryColor.withOpacity(0.1),
-                  ),
-                if (selectedValues != null && selectedValues.isNotEmpty)
-                  Wrap(
-                    spacing: 8.0,
-                    runSpacing: 4.0,
-                    children: selectedValues.map((item) => Chip(
-                      label: Text(item),
-                      onDeleted: () {
-                        setState(() => selectedValues.remove(item));
-                      },
-                    )).toList(),
-                  )
-              ],
-            ),
+            child: hasValue
+                ? Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: selectedValues != null
+                  ? selectedValues.map((e) => Chip(
+                label: Text(e, style: TextStyle(fontSize: 12, color: theme.primaryColor)),
+                backgroundColor: theme.primaryColor.withOpacity(0.1),
+                side: BorderSide(color: theme.primaryColor.withOpacity(0.2)),
+                padding: EdgeInsets.zero,
+                deleteIconColor: theme.primaryColor,
+                onDeleted: () => setState(() => selectedValues.remove(e)),
+              )).toList()
+                  : [Chip(
+                label: Text(selectedValue!, style: TextStyle(fontWeight: FontWeight.bold, color: theme.primaryColor)),
+                backgroundColor: theme.primaryColor.withOpacity(0.1),
+                side: BorderSide(color: theme.primaryColor.withOpacity(0.2)),
+              )],
+            )
+                : Text(placeholder, style: TextStyle(color: Colors.grey.shade500)),
           ),
         ),
       ],
@@ -512,43 +507,41 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         TextField(
           controller: _tagsController,
           decoration: InputDecoration(
-            labelText: 'Etiket ekle (örn: render, konsept)',
+            hintText: 'Etiket yazıp +\'ya basın',
             suffixIcon: IconButton(
-              icon: const Icon(Icons.add_circle_outline),
+              icon: Icon(Icons.add_circle, color: theme.primaryColor),
               onPressed: _addTag,
             ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           ),
           onSubmitted: (_) => _addTag(),
         ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8.0,
-          runSpacing: 4.0,
-          children: _tags.map((tag) {
-            return Chip(
-              label: Text(tag),
-              onDeleted: () {
-                setState(() => _tags.remove(tag));
-              },
-            );
-          }).toList(),
-        ),
+        if (_tags.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Wrap(
+              spacing: 8,
+              children: _tags.map((tag) => Chip(
+                label: Text(tag, style: TextStyle(color: theme.primaryColor)),
+                backgroundColor: theme.cardColor,
+                side: BorderSide(color: theme.dividerColor),
+                deleteIconColor: theme.primaryColor,
+                onDeleted: () {
+                  setState(() => _tags.remove(tag));
+                },
+              )).toList(),
+            ),
+          ),
       ],
     );
   }
 
   Widget _buildSubmitButton(ThemeData theme) {
     return Container(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: theme.cardColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -5),
-          )
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))],
       ),
       child: SafeArea(
         child: Consumer<ShowcaseProvider>(
@@ -559,11 +552,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               onPressed: provider.isCreatingPost ? null : _submitPost,
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),
+                backgroundColor: theme.primaryColor,
+                foregroundColor: Colors.white,
               ),
-              // Yükleme durumunu butonun içinde göstermek daha şık
-              // child: provider.isCreatingPost
-              //     ? const CircularProgressIndicator(color: Colors.white)
-              //     : const Text("Paylaş"),
             );
           },
         ),

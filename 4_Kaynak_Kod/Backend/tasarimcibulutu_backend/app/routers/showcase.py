@@ -2,6 +2,7 @@
 
 import uuid
 import os
+import json # <-- BU IMPORT KRİTİK
 from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -15,7 +16,8 @@ from app.config import settings
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from app.models.showcase import ProcessingStatus
-from app.models.user import UserRole # <-- EKLENDİ
+from app.models.user import UserRole
+from app.crud import audit as audit_crud # <-- Loglama CRUD'u
 
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(
@@ -27,8 +29,6 @@ ALLOWED_FILE_EXTENSIONS = {".zip"}
 
 # --- YARDIMCI FONKSİYON: ROL KONTROLÜ ---
 def check_freelancer_permission(user: models.User):
-    # Modelindeki enum yapısına göre (UserRole.freelancer veya string olarak)
-    # Veritabanında enum 'freelancer' olarak tutuluyorsa:
     if user.role != UserRole.freelancer:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -46,9 +46,7 @@ def initialize_post_upload(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # --- FAZ 1 DÜZELTMESİ: ROL KONTROLÜ ---
     check_freelancer_permission(current_user)
-    # --------------------------------------
 
     _, file_extension = os.path.splitext(post_init_data.original_filename.lower())
     
@@ -60,11 +58,19 @@ def initialize_post_upload(
 
     db_post = crud.showcase.create_showcase_post(db, post=post_init_data, user_id=current_user.id, status=ProcessingStatus.PENDING)
 
+    # Veritabanı hatası kontrolü
+    if not db_post:
+         raise HTTPException(status_code=500, detail="Database error: Post could not be created.")
+
     raw_file_key = f"uploads-raw/{db_post.id}{file_extension}"
 
+    # Storage URL oluşturma
     if file_extension == ".zip":
-        project_id = settings.SUPABASE_URL.split("https://")[1].split(".")[0]
-        raw_file_url = f"https://{project_id}.supabase.co/storage/v1/object/public/raw-files/{raw_file_key}"
+        try:
+            project_id = settings.SUPABASE_URL.split("https://")[1].split(".")[0]
+            raw_file_url = f"https://{project_id}.supabase.co/storage/v1/object/public/raw-files/{raw_file_key}"
+        except IndexError:
+            raw_file_url = f"{settings.SUPABASE_URL}/storage/v1/object/public/raw-files/{raw_file_key}"
     else:
         raw_file_url = f"https://res.cloudinary.com/{settings.CLOUDINARY_CLOUD_NAME}/image/upload/{raw_file_key}"
 
@@ -79,6 +85,24 @@ def initialize_post_upload(
 
     if not upload_data:
         raise HTTPException(status_code=500, detail="Could not generate upload URL")
+        
+    # --- LOGLAMA (JSON DÜZELTMESİ) ---
+    # details kısmını json.dumps() ile string'e çeviriyoruz.
+    audit_crud.create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="SHOWCASE_POST_INIT", # <-- İsim güncellendi
+        target_entity="showcase_posts",
+        target_id=str(db_post.id),
+        details=json.dumps({
+            "post_id": str(db_post.id),
+            "title": db_post.title,
+            "filename": post_init_data.original_filename
+        }), 
+        ip_address=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
+    # ---------------------------------
 
     return schemas.showcase.ShowcasePostInitResponse(
         post_id=db_post.id,
@@ -97,16 +121,28 @@ def create_post(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    # --- FAZ 1 DÜZELTMESİ: ROL KONTROLÜ ---
     check_freelancer_permission(current_user)
-    # --------------------------------------
 
     print(f"DEBUG: create_post çağrıldı. Gelen file_url: {post.file_url}")
 
     db_post = crud.showcase.create_showcase_post(db=db, post=post, user_id=current_user.id)
     
-    if post.file_url:
-        print(f"DEBUG: Dosya uzantısı zip mi? {post.file_url.endswith('.zip')}")
+    # --- LOGLAMA (JSON DÜZELTMESİ) ---
+    if db_post:
+        audit_crud.create_audit_log(
+            db=db,
+            user_id=current_user.id,
+            action="SHOWCASE_POST_CREATED",
+            target_entity="showcase_posts",
+            target_id=str(db_post.id),
+            details=json.dumps({
+                "post_id": str(db_post.id),
+                "title": db_post.title
+            }),
+            ip_address=request.client.host,
+            user_agent=request.headers.get("user-agent")
+        )
+    # ---------------------------------
 
     if post.file_url and post.file_url.endswith('.zip'):
         print(f"🚀 Background Task Tetikleniyor: Post ID {db_post.id}")
@@ -131,10 +167,9 @@ def read_all_posts(
     skip: int = 0, 
     limit: int = 20, 
     search: Optional[str] = None,
-    sort_by: Optional[str] = 'newest', # <-- YENİ PARAMETRE
+    sort_by: Optional[str] = 'newest', 
     db: Session = Depends(get_db)
 ):
-    # CRUD fonksiyonuna tüm parametreleri iletiyoruz
     return crud.showcase.get_all_showcase_posts(
         db=db, 
         skip=skip, 
@@ -162,6 +197,20 @@ def delete_post(request: Request, post_id: uuid.UUID, db: Session = Depends(get_
     deleted_post = crud.showcase.delete_showcase_post(db, post_id=post_id, user_id=current_user.id)
     if not deleted_post:
         raise HTTPException(status_code=403, detail="Post not found or you don't have permission to delete it")
+    
+    # --- LOGLAMA ---
+    audit_crud.create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="SHOWCASE_POST_DELETED",
+        target_entity="showcase_posts",
+        target_id=str(post_id),
+        details="Vitrin gönderisi silindi.", # Düz string olduğu için json.dumps gerekmez
+        ip_address=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
+    # ---------------
+    
     return
 
 # =======================================================================
@@ -198,7 +247,23 @@ def create_a_comment(
         post_id=post_id,
         parent_comment_id=comment_data.parent_comment_id
     )
-    return crud.showcase.create_comment(db, comment=comment_create_schema, user_id=current_user.id)
+    comment = crud.showcase.create_comment(db, comment=comment_create_schema, user_id=current_user.id)
+    
+    # --- LOGLAMA ---
+    if comment:
+        audit_crud.create_audit_log(
+            db=db,
+            user_id=current_user.id,
+            action="COMMENT_CREATED",
+            target_entity="comments",
+            target_id=str(comment.id),
+            details=json.dumps({"content": comment_data.content[:50]}),
+            ip_address=request.client.host,
+            user_agent=request.headers.get("user-agent")
+        )
+    # ---------------
+    
+    return comment
 
 @router.delete("/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("20/hour")
@@ -243,27 +308,22 @@ async def upload_proxy(
     file_path: str = Form(...), 
     bucket: str = Form(...)     
 ):
-    print(f"🚀 Proxy Upload Başladı: {file.filename} -> Supabase/{bucket}/{file_path}")
-    
+    # Proxy upload loglaması gerekirse buraya eklenebilir ama şimdilik gerek yok.
     try:
         file_content = await file.read()
         supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
         
-        res = supabase.storage.from_(bucket).upload(
+        supabase.storage.from_(bucket).upload(
             path=file_path,
             file=file_content,
             file_options={"content-type": "application/zip"}
         )
-        print(f"✅ Supabase Yükleme Başarılı. Path: {file_path}")
         
         try:
             filename = file_path.split('/')[-1]
             post_id = filename.rsplit('.', 1)[0]
-            
             project_id = settings.SUPABASE_URL.split("https://")[1].split(".")[0]
             file_url = f"https://{project_id}.supabase.co/storage/v1/object/public/{bucket}/{file_path}"
-            
-            print(f"🚀 Yükleme bitti, Model İşleme Tetikleniyor... Post ID: {post_id}")
             
             background_tasks.add_task(
                 model_processor.process_3d_model_background, 
@@ -276,5 +336,4 @@ async def upload_proxy(
         return {"message": "Upload successful and processing started via proxy"}
         
     except Exception as e:
-        print(f"❌ Proxy Upload Hatası: {e}")
         raise HTTPException(status_code=500, detail=str(e))

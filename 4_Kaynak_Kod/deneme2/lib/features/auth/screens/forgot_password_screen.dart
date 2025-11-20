@@ -15,13 +15,12 @@ class ForgotPasswordScreen extends StatefulWidget {
 
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _emailController = TextEditingController();
-  final _formKey = GlobalKey<FormState>(); // Formu doğrulamak için key
-
-  // _isLoading durumunu AuthProvider'dan alacağız
-  // bool _isLoading = false;
+  final _formKey = GlobalKey<FormState>();
 
   void _sendResetLink() async {
-    // Formu doğrula
+    // Klavye açıksa kapat
+    FocusScope.of(context).unfocus();
+
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
@@ -47,7 +46,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(authProvider.lastError ?? 'Bir hata oluştu, lütfen tekrar deneyin.'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
@@ -55,46 +54,83 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // isLoading durumunu provider'dan izliyoruz
     final authProvider = context.watch<AuthProvider>();
 
     final buttonContent = authProvider.isLoading
-        ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+        ? const SizedBox(
+        height: 24,
+        width: 24,
+        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+    )
         : const Text(
-      'GÖNDER',
-      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+      'KOD GÖNDER',
+      style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
     );
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Şifremi Unuttum'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
       ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Form( // Form widget'ı ile sarmalıyoruz
+          child: Form(
             key: _formKey,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Icon(Icons.lock_reset, size: 80, color: theme.colorScheme.secondary),
-                const SizedBox(height: 24),
-                Text('Şifremi Unuttum', textAlign: TextAlign.center, style: theme.textTheme.displaySmall),
-                const SizedBox(height: 16),
+                // --- İKON VE BAŞLIK ---
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: theme.primaryColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                      Icons.lock_reset,
+                      size: 80,
+                      color: theme.primaryColor
+                  ),
+                ),
+                const SizedBox(height: 32),
+
                 Text(
-                  'Şifrenizi sıfırlamak için kayıtlı e-posta adresinizi girin. Size 6 haneli bir sıfırlama kodu göndereceğiz.',
+                    'Şifrenizi mi unuttunuz?',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold
+                    )
+                ),
+                const SizedBox(height: 12),
+
+                Text(
+                  'Endişelenmeyin! Kayıtlı e-posta adresinizi girin, size şifre sıfırlama kodunu gönderelim.',
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.secondary),
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.onSurface.withOpacity(0.7),
+                      height: 1.5
+                  ),
                 ),
                 const SizedBox(height: 40),
+
+                // --- INPUT ---
                 TextFormField(
                   controller: _emailController,
-                  decoration: const InputDecoration(hintText: 'E-posta adresinizi girin', prefixIcon: Icon(Icons.email_outlined)),
+                  // AppTheme inputDecorationTheme kullandığı için burayı sade tutuyoruz
+                  decoration: const InputDecoration(
+                    labelText: 'E-Posta',
+                    hintText: 'ornek@email.com',
+                    prefixIcon: Icon(Icons.email_outlined),
+                  ),
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty || !value.contains('@')) {
@@ -104,6 +140,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   },
                 ),
                 const SizedBox(height: 32),
+
+                // --- BUTON ---
                 ElevatedButton(
                   onPressed: authProvider.isLoading ? null : _sendResetLink,
                   style: ElevatedButton.styleFrom(
@@ -111,10 +149,14 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ),
                   child: buttonContent,
                 ),
-                const SizedBox(height: 16),
-                TextButton(
+
+                const SizedBox(height: 24),
+
+                // --- GERİ DÖN ---
+                TextButton.icon(
                   onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Giriş Sayfasına Dön'),
+                  icon: const Icon(Icons.arrow_back, size: 18),
+                  label: const Text('Giriş Sayfasına Dön'),
                 ),
               ],
             ),

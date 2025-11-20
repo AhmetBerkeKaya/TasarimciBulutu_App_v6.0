@@ -1,3 +1,5 @@
+// lib/features/profile/screens/add_portfolio_item_screen.dart
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -29,7 +31,7 @@ class _AddPortfolioItemScreenState extends State<AddPortfolioItemScreen> {
     final item = widget.itemToEdit;
     _titleController = TextEditingController(text: item?.title ?? '');
     _descriptionController = TextEditingController(text: item?.description ?? '');
-    // Eğer düzenleme modundaysak, mevcut dosyanın adını gösterelim
+
     if (_isEditMode) {
       _selectedFileName = widget.itemToEdit!.imageUrl.split('/').last;
     }
@@ -43,12 +45,10 @@ class _AddPortfolioItemScreenState extends State<AddPortfolioItemScreen> {
   }
 
   Future<void> _pickFile() async {
-    // --- DEĞİŞİKLİK BURADA: Sadece PDF dosyalarına izin veriyoruz ---
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['pdf'], // Sadece .pdf uzantılı dosyaları göster
+      allowedExtensions: ['pdf'],
     );
-    // --- BİTTİ ---
 
     if (result != null) {
       setState(() {
@@ -59,27 +59,29 @@ class _AddPortfolioItemScreenState extends State<AddPortfolioItemScreen> {
   }
 
   Future<void> _saveItem() async {
+    // Klavye açıksa kapat
+    FocusScope.of(context).unfocus();
+
     if (_formKey.currentState!.validate()) {
-      // Yeni ekleme modunda dosya seçmek zorunlu.
       if (!_isEditMode && _selectedFile == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lütfen bir dosya seçin.')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Lütfen bir PDF dosyası seçin.'), backgroundColor: Colors.orange),
+        );
         return;
       }
+
       setState(() => _isLoading = true);
       final authProvider = context.read<AuthProvider>();
       bool success = false;
 
       if (_isEditMode) {
-        // --- GÜNCELLEME MANTIĞI ---
         success = await authProvider.updatePortfolioItem(
           itemId: widget.itemToEdit!.id,
           title: _titleController.text,
           description: _descriptionController.text,
-          // Eğer kullanıcı yeni bir dosya seçtiyse onu gönder, seçmediyse null gönder.
           newFile: _selectedFile,
         );
       } else {
-        // --- EKLEME MANTIĞI ---
         success = await authProvider.addPortfolioItem(
           title: _titleController.text,
           description: _descriptionController.text,
@@ -88,11 +90,18 @@ class _AddPortfolioItemScreenState extends State<AddPortfolioItemScreen> {
       }
 
       if (!mounted) return;
+
       if (success) {
         Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Portfolyo başarıyla güncellendi!'), backgroundColor: Colors.green),
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('İşlem sırasında bir hata oluştu.'), backgroundColor: Colors.red),
+          SnackBar(
+              content: const Text('İşlem sırasında bir hata oluştu.'),
+              backgroundColor: Theme.of(context).colorScheme.error
+          ),
         );
       }
       setState(() => _isLoading = false);
@@ -101,66 +110,147 @@ class _AddPortfolioItemScreenState extends State<AddPortfolioItemScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Scaffold(
-      appBar: AppBar(title: Text(_isEditMode ? 'Portfolyoyu Düzenle' : 'Yeni Portfolyo Ekle')),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            InkWell(
-              onTap: _pickFile,
-              child: Container(
-                height: 200,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey),
-                  borderRadius: BorderRadius.circular(8),
-                  color: Colors.grey.shade100,
-                ),
-                child: Center(
-                  child: (_selectedFileName != null)
-                      ? Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.picture_as_pdf, color: Colors.red.shade700, size: 48),
-                      const SizedBox(height: 8),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                        child: Text(
-                          _selectedFileName!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      if (_isEditMode && _selectedFile == null)
-                        const Text("(Mevcut Dosya)", style: TextStyle(color: Colors.grey, fontSize: 12)),
+      appBar: AppBar(
+        title: Text(_isEditMode ? 'Portfolyoyu Düzenle' : 'Yeni Portfolyo Ekle'),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: theme.scaffoldBackgroundColor,
+        foregroundColor: theme.colorScheme.onBackground,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // --- DOSYA SEÇİM ALANI ---
+              InkWell(
+                onTap: _pickFile,
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  height: 180,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: theme.cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                        color: _selectedFileName != null
+                            ? theme.primaryColor
+                            : theme.dividerColor,
+                        width: 2,
+                        style: _selectedFileName != null ? BorderStyle.solid : BorderStyle.solid // İstenirse dotted border paketi eklenebilir
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      )
                     ],
-                  )
-                      : Column(
-                    mainAxisSize: MainAxisSize.min,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.attach_file, size: 48),
-                      const SizedBox(height: 8),
-                      const Text(
-                        "Portfolyo için PDF Dosyası Seç",
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        "(.pdf formatında)",
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
+                      if (_selectedFileName != null) ...[
+                        // Dosya Seçiliyse
+                        const Icon(Icons.picture_as_pdf_rounded, color: Colors.redAccent, size: 48),
+                        const SizedBox(height: 12),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Text(
+                            _selectedFileName!,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        if (_isEditMode && _selectedFile == null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                                "(Mevcut Dosya)",
+                                style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey)
+                            ),
+                          ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Değiştirmek için tıklayın",
+                          style: theme.textTheme.bodySmall?.copyWith(color: theme.primaryColor),
+                        ),
+                      ] else ...[
+                        // Dosya Seçili Değilse
+                        Icon(Icons.cloud_upload_outlined, size: 48, color: theme.primaryColor.withOpacity(0.6)),
+                        const SizedBox(height: 12),
+                        Text(
+                          "PDF Dosyası Seçin",
+                          style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "Portfolyonuz için .pdf formatı",
+                          style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
+                        ),
+                      ],
                     ],
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            TextFormField(controller: _titleController, decoration: const InputDecoration(labelText: 'Başlık'), validator: (v) => v!.isEmpty ? 'Başlık zorunludur.' : null),
-            const SizedBox(height: 16),
-            TextFormField(controller: _descriptionController, decoration: const InputDecoration(labelText: 'Açıklama'), maxLines: 3),
-            const SizedBox(height: 24),
-            ElevatedButton(onPressed: _isLoading ? null : _saveItem, child: const Text('KAYDET')),
-          ],
+
+              const SizedBox(height: 32),
+
+              // --- INPUTLAR ---
+              TextFormField(
+                controller: _titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Başlık',
+                  hintText: 'Örn: Mimari Restorasyon Projesi',
+                  prefixIcon: Icon(Icons.title),
+                ),
+                validator: (v) => v!.isEmpty ? 'Başlık zorunludur.' : null,
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Açıklama',
+                  hintText: 'Proje detaylarından bahsedin...',
+                  prefixIcon: Icon(Icons.description_outlined),
+                  alignLabelWithHint: true,
+                ),
+                maxLines: 4,
+              ),
+
+              const SizedBox(height: 40),
+
+              // --- KAYDET BUTONU ---
+              ElevatedButton(
+                onPressed: _isLoading ? null : _saveItem,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: theme.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 2,
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                )
+                    : const Text(
+                  'KAYDET',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
