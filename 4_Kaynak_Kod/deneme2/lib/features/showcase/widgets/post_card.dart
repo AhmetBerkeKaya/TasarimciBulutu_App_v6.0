@@ -16,6 +16,15 @@ class PostCard extends StatelessWidget {
 
   const PostCard({super.key, required this.post});
 
+  // Backend'deki ReportReason Enum'ı ile birebir aynı olmalı
+  static const List<String> reportReasons = [
+    "Spam / Reklam",
+    "Uygunsuz İçerik (+18, Şiddet)",
+    "Telif Hakkı İhlali",
+    "Sahte / Yanıltıcı",
+    "Diğer"
+  ];
+
   String _getCorrectImageUrl(String? url) {
     if (url == null || url.isEmpty) return '';
     const marker = '.amazonaws.com';
@@ -27,6 +36,94 @@ class PostCard extends StatelessWidget {
       }
     }
     return url;
+  }
+
+  // --- YENİ: ŞİKAYET PENCERESİ ---
+  void _showReportDialog(BuildContext context, String postId) {
+    String selectedReason = reportReasons[0];
+    final TextEditingController descriptionController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder( // Dialog içinde state değiştirmek için
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Gönderiyi Bildir'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Lütfen şikayet sebebini seçin:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                    const SizedBox(height: 10),
+                    ...reportReasons.map((reason) => RadioListTile<String>(
+                      title: Text(reason, style: const TextStyle(fontSize: 14)),
+                      value: reason,
+                      groupValue: selectedReason,
+                      contentPadding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
+                      onChanged: (value) {
+                        setState(() => selectedReason = value!);
+                      },
+                    )),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: descriptionController,
+                      decoration: const InputDecoration(
+                        labelText: 'Ek Açıklama (Opsiyonel)',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                      maxLines: 3,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('İptal'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _submitReport(context, postId, selectedReason, descriptionController.text);
+                  },
+                  child: const Text('Gönder'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // --- YENİ: ŞİKAYET GÖNDERME İŞLEMİ ---
+  void _submitReport(BuildContext context, String postId, String reason, String description) async {
+    final success = await Provider.of<ShowcaseProvider>(context, listen: false)
+        .reportPost(postId, reason, description);
+
+    if (context.mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bildiriminiz alındı. Teşekkürler!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Bir hata oluştu. Lütfen tekrar deneyin.'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   void _showPostOptions(BuildContext context, String postId, bool isMyPost) {
@@ -49,16 +146,17 @@ class PostCard extends StatelessWidget {
                     _showDeleteConfirmationDialog(context, postId);
                   },
                 ),
-              ListTile(
-                leading: const Icon(Icons.flag_outlined),
-                title: const Text('Gönderiyi Bildir'),
-                onTap: () {
-                  Navigator.of(ctx).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Bildiriminiz alındı.'), backgroundColor: Colors.orange),
-                  );
-                },
-              ),
+              // --- DÜZELTME: Kendi gönderisini şikayet edemez ---
+              if (!isMyPost)
+                ListTile(
+                  leading: const Icon(Icons.flag_outlined),
+                  title: const Text('Gönderiyi Bildir'),
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    // Yeni diyalog fonksiyonunu çağırıyoruz
+                    _showReportDialog(context, postId);
+                  },
+                ),
             ],
           ),
         );

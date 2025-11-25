@@ -1,0 +1,19 @@
+/* DÜZELTİLMİŞ src/index.css */
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #f8fafc; /* Arka plan rengimizle uyumlu olsun */
+}
+
+#root {
+  width: 100%;       /* Genişlik %100 olsun */
+  max-width: none;   /* Sınır yok! */
+  margin: 0;         /* Kenar boşluğu yok */
+  padding: 0;        /* İç boşluk yok */
+}

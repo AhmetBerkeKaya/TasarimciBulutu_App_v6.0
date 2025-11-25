@@ -65,6 +65,8 @@ class ShowcasePost(Base):
         back_populates="showcase_posts"
     )
     # =============================================
+    reports = relationship("Report", back_populates="showcase_post", cascade="all, delete-orphan")
+
 
 # ... (PostLike, PostComment, CommentLike sınıfları aynı kalıyor) ...
 class PostLike(Base):

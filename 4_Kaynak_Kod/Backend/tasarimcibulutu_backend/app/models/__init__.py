@@ -1,19 +1,22 @@
 from app.database import Base
 
-from .user import User, UserRole
-from .message import Message
+# Bağımsız Modeller
+from .skill import Skill
+from .user import User
+
+# Bağımlı Modeller (Sıralama Önemli)
 from .project import Project, ProjectStatus, ProjectRevision
 from .application import Application, ApplicationStatus
-from .notification import Notification, NotificationType
-from .skill_test import SkillTest
-from .test_result import TestResult
+from .showcase import ShowcasePost, PostLike, PostComment, CommentLike
+from .report import Report, ReportReason, ReportStatus  # <--- BU SATIR ŞART
+from .audit import AuditLog
+from .message import Message
+from .notification import Notification
 from .portfolio import PortfolioItem 
-from .work_experience import WorkExperience
 from .question import Question
 from .choice import Choice
 from .skill_test import SkillTest
-from .test_result import TestResult, TestStatus
+from .test_result import TestResult
 from .review import Review
-from .showcase import ShowcasePost
-from .audit import AuditLog
+from .work_experience import WorkExperience
 from .recommendation import ProjectRecommendation

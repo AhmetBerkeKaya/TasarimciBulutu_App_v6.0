@@ -8,6 +8,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware 
 from slowapi.util import get_remote_address
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware # <--- YENİ EKLENDİ: CORS Kütüphanesi
 
 # --- DÜZELTME 1: IMPORT YOLLARI ---
 # Dosya artık ana dizinde olduğu için 'app.' diyerek tam yolunu göstermeliyiz.
@@ -20,7 +21,7 @@ from app.database import engine
 from app.routers import (
     user, project, application, auth, message, notification, 
     skill_test, skill, portfolio, work_experience, review, 
-    showcase, recommendation
+    showcase, recommendation, admin, report
 )
 
 # --- DÜZELTME 2: LOGGING ---
@@ -47,6 +48,27 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# ==================================================================
+# === YENİ EKLENEN KISIM: WEB PORTAL İÇİN CORS AYARLARI (BAŞLANGIÇ) ===
+# ==================================================================
+# Web tarayıcılarının (React), bu Backend'e erişmesine izin veriyoruz.
+origins = [
+    "http://localhost:5173", # Vite React Varsayılan Portu
+    "http://localhost:3000", # Alternatif React Portu
+    "*"                      # Geliştirme aşamasında tüm kaynaklara izin ver
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"], # GET, POST, PUT, DELETE vb. hepsine izin ver
+    allow_headers=["*"], # Token vb. headerlara izin ver
+)
+# ==================================================================
+# ===                  CORS AYARLARI (BİTİŞ)                     ===
+# ==================================================================
+
 # Uygulama başladığında log atalım
 logger.info("TasarimciBulutu API (Non-AWS Version) başlatılıyor...")
 
@@ -60,6 +82,7 @@ app.add_middleware(SlowAPIMiddleware)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Router'ları Dahil Etme
+app.include_router(admin.router)
 app.include_router(auth.router)
 app.include_router(user.router)
 app.include_router(project.router)
@@ -73,6 +96,7 @@ app.include_router(work_experience.router)
 app.include_router(review.router)
 app.include_router(showcase.router)
 app.include_router(recommendation.router)
+app.include_router(report.router)
 
 @app.get("/")
 @limiter.limit("10/minute")

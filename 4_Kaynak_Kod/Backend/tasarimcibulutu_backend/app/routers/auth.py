@@ -1,4 +1,5 @@
-# routers/auth.py
+# app/routers/auth.py
+
 from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -8,14 +9,17 @@ import requests
 
 from app import database, security
 from app.crud import user as user_crud
-from app.crud import audit as audit_crud # <--- YENİ IMPORT: Loglama CRUD'u
+from app.crud import audit as audit_crud
 from app.schemas.token import Token, RefreshTokenRequest, TokenData 
 from app.schemas.user import PasswordRecoveryRequest, PasswordResetRequest
 from app.config import settings
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from app.utils import email as email_utils
+from app.models.user import User as UserModel # Model importu
+from app.dependencies import get_db, get_current_user, get_current_admin
 
+# Prefix burada BOŞ olmalı. main.py'da "/auth" ekliyoruz.
 router = APIRouter(
     tags=["authentication"]
 )
@@ -29,40 +33,84 @@ def get_db():
     finally:
         db.close()
 
-
+# --- 1. STANDART GİRİŞ (MOBİL İÇİN) ---
 @router.post("/token", response_model=Token)
 @limiter.limit("10/15minute")
 def login_for_access_token(request: Request, db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
     user = user_crud.authenticate_user(db, email=form_data.username, password=form_data.password)
     if not user:
-        # --- (Opsiyonel) Başarısız Giriş Logu ---
-        # audit_crud.create_audit_log(
-        #     db=db,
-        #     action="LOGIN_FAILED",
-        #     details=f"Failed login attempt for email: {form_data.username}",
-        #     ip_address=request.client.host,
-        #     user_agent=request.headers.get("user-agent")
-        # )
-        # ----------------------------------------
+        # Başarısız giriş loglaması (isteğe bağlı açılabilir)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # --- BAŞARILI GİRİŞ LOGU ---
+    # LOGLAMA
     audit_crud.create_audit_log(
         db=db,
         user_id=user.id,
         action="LOGIN_SUCCESS",
         target_entity="users",
         target_id=str(user.id),
-        details="Kullanıcı başarıyla giriş yaptı.",
+        details="Kullanıcı mobil/web giriş yaptı.",
         ip_address=request.client.host,
         user_agent=request.headers.get("user-agent")
     )
-    # ---------------------------
 
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = security.create_access_token(
+        data={"sub": user.email}, expires_delta=access_token_expires
+    )
+    refresh_token = security.create_refresh_token(
+        data={"sub": user.email}
+    )
+    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+
+# --- 2. ADMIN GİRİŞİ (WEB PORTAL İÇİN - YENİ) ---
+@router.post("/admin/token", response_model=Token)
+@limiter.limit("5/15minute")
+def login_for_admin_access_token(request: Request, db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
+    # 1. Standart doğrulama
+    user = user_crud.authenticate_user(db, email=form_data.username, password=form_data.password)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Hatalı e-posta veya şifre.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # 2. YETKİ KONTROLÜ (KRİTİK KISIM)
+    # Kullanıcı Süper Admin mi VEYA Admin Paneli yetkisi var mı?
+    is_authorized = user.is_superuser or user.roles.get("admin_panel") in ["super_admin", "admin", "editor"]
+    
+    if not is_authorized:
+        # Yetkisiz giriş denemesi logu
+        audit_crud.create_audit_log(
+            db=db,
+            user_id=user.id,
+            action="ADMIN_LOGIN_FAILED_UNAUTHORIZED",
+            details="Yetkisiz kullanıcı admin paneline girmeye çalıştı.",
+            ip_address=request.client.host
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bu panele giriş yetkiniz yok."
+        )
+
+    # 3. Başarılı Admin Girişi Logu
+    audit_crud.create_audit_log(
+        db=db,
+        user_id=user.id,
+        action="ADMIN_LOGIN_SUCCESS",
+        target_entity="users",
+        target_id=str(user.id),
+        details="Yönetici paneline giriş yapıldı.",
+        ip_address=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
+
+    # 4. Token Üretimi
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = security.create_access_token(
         data={"sub": user.email}, expires_delta=access_token_expires
@@ -132,7 +180,6 @@ def reset_password(
 def get_viewer_token(request: Request):
     """
     Provides a read-only access token for the Autodesk Platform Services viewer.
-    This token has a limited scope ('viewables:read') and is safe to use on the client-side viewer.
     """
     token_url = "https://developer.api.autodesk.com/authentication/v2/token"
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}

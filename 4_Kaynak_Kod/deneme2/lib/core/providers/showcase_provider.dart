@@ -305,7 +305,25 @@ class ShowcaseProvider with ChangeNotifier {
     }
     return success;
   }
+  // === YENİ EKLENEN: GÖNDERİ BİLDİRME ===
+  Future<bool> reportPost(String postId, String reason, String description) async {
+    try {
+      // ApiService üzerinden backend'e istek atıyoruz
+      await _apiService.reportShowcasePost(
+          postId: postId,
+          reason: reason,
+          description: description
+      );
 
+      // İşlem başarılı olursa true dön
+      return true;
+    } catch (e) {
+      print("Raporlama hatası: $e");
+      _errorMessage = "Bildirim gönderilemedi: $e";
+      notifyListeners();
+      return false;
+    }
+  }
   bool _findAndRemoveComment(List<Comment> comments, String commentId) {
     for (int i = 0; i < comments.length; i++) {
       if (comments[i].id == commentId) {

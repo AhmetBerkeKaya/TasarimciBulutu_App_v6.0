@@ -282,7 +282,27 @@ class ApiService {
       return false;
     }
   }
-
+  // --- YENİ: ŞİKAYET ETME METODU ---
+  Future<bool> reportShowcasePost({
+    required String postId,
+    required String reason,
+    String? description,
+  }) async {
+    try {
+      final response = await _dio.post(
+        '/showcase/$postId/report',
+        data: {
+          'reason': reason,
+          'description': description,
+        },
+      );
+      // Backend 200 veya 201 dönebilir
+      return response.statusCode == 200 || response.statusCode == 201;
+    } on DioException catch (e) {
+      print('reportShowcasePost Hata: ${e.response?.data}');
+      return false;
+    }
+  }
   // --- GÜNCELLENEN YORUM FONKSİYONU ---
   Future<Comment?> addComment({
     required String postId,

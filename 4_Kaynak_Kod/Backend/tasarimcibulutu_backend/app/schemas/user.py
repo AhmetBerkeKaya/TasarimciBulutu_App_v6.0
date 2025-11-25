@@ -19,7 +19,6 @@ class UserSummary(BaseModel):
     profile_picture_url: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
-    # EKSİK OLAN VALIDATOR'I BURAYA DA EKLİYORUZ
     @field_validator('profile_picture_url')
     def assemble_s3_url(cls, v):
         if v is None or v.startswith('http'):
@@ -43,9 +42,14 @@ class UserBase(BaseModel):
     @field_validator('phone_number')
     def validate_phone_number(cls, v):
         try:
-            parsed_number = phonenumbers.parse(v, None)
+            # --- DÜZELTME BURADA: None yerine "TR" yazıyoruz ---
+            # Böylece +90 olmadan yazılan numaraları da kabul eder.
+            parsed_number = phonenumbers.parse(v, "TR") 
+            
             if not phonenumbers.is_valid_number(parsed_number):
                 raise ValueError("Geçersiz telefon numarası formatı.")
+            
+            # Veritabanına hep +90... (E164) formatında kaydediyoruz
             return phonenumbers.format_number(
                 parsed_number, phonenumbers.PhoneNumberFormat.E164
             )
@@ -57,15 +61,11 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str
 
-# ========================================================================
-# ===                     DEĞİŞİKLİK BURADA                            ===
-# ========================================================================
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     bio: Optional[str] = None
     phone_number: Optional[str] = None
-    profile_picture_url: Optional[str] = None # <-- EKSİK ALANI EKLEDİK
-# ========================================================================
+    profile_picture_url: Optional[str] = None
 
 class PasswordUpdate(BaseModel):
     current_password: str
@@ -81,6 +81,7 @@ class PasswordResetRequest(BaseModel):
 class User(UserBase):
     id: uuid.UUID
     is_verified: bool
+    is_active: bool
     phone_number: Optional[str] = None
     created_at: datetime
     updated_at: datetime
@@ -88,11 +89,12 @@ class User(UserBase):
     portfolio_items: List[PortfolioItemSchema] = []
     work_experiences: List[WorkExperienceSchema] = []
     test_results: List[TestResultSchema] = []
-    reviews_received: List['Review'] = []
+    # reviews_received: List['Review'] = [] # Döngüsel import sorunu olursa kapatılabilir
     model_config = ConfigDict(from_attributes=True)
 
 class UserInResponse(UserSummary):
     pass
 
+# Döngüsel referansları çözmek için model rebuild
 from .review import Review
 User.model_rebuild()
