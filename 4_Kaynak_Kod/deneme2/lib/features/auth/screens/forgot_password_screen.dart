@@ -18,7 +18,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
 
   void _sendResetLink() async {
-    // Klavye açıksa kapat
     FocusScope.of(context).unfocus();
 
     if (!(_formKey.currentState?.validate() ?? false)) {
@@ -31,12 +30,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('E-posta adresiniz kayıtlıysa, sıfırlama kodu gönderildi.'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Row(children: [Icon(Icons.mark_email_read_rounded, color: Colors.white), SizedBox(width: 8), Expanded(child: Text('Sıfırlama kodu gönderildi.'))]),
+            backgroundColor: Colors.green.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
-        // Başarılı olunca yeni şifre belirleme ekranına yönlendir
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (ctx) => ResetPasswordScreen(email: _emailController.text),
@@ -45,8 +45,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(authProvider.lastError ?? 'Bir hata oluştu, lütfen tekrar deneyin.'),
-            backgroundColor: Theme.of(context).colorScheme.error,
+            content: Row(children: [const Icon(Icons.error_outline, color: Colors.white), const SizedBox(width: 8), Expanded(child: Text(authProvider.lastError ?? 'Bir hata oluştu.'))]),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
@@ -62,43 +64,68 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final authProvider = context.watch<AuthProvider>();
 
-    final buttonContent = authProvider.isLoading
-        ? const SizedBox(
-        height: 24,
-        width: 24,
-        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-    )
-        : const Text(
-      'KOD GÖNDER',
-      style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
-    );
+    // --- RENK PALETİ ---
+    final primaryText = isDark ? Colors.white : const Color(0xFF0F172A);
+    final secondaryText = isDark ? Colors.grey[400]! : const Color(0xFF64748B);
+    final inputLabelColor = isDark ? const Color(0xFFE0E0E0) : const Color(0xFF334155);
+
+    // Buton Gradiyeni
+    final buttonGradient = isDark
+        ? const LinearGradient(colors: [Color(0xFFFFFFFF), Color(0xFFE2E8F0)])
+        : const LinearGradient(colors: [Color(0xFF1E293B), Color(0xFF020617)]);
+
+    final buttonTextColor = isDark ? Colors.black : Colors.white;
 
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Şifremi Unuttum'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: Container(
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.white.withOpacity(0.1) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+          ),
+          child: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: primaryText),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
       ),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 28.0),
           child: Form(
             key: _formKey,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // --- İKON VE BAŞLIK ---
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: theme.primaryColor.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                      Icons.lock_reset,
-                      size: 80,
-                      color: theme.primaryColor
+                // --- İKON ALANI ---
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                        Icons.lock_open_rounded,
+                        size: 56,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A)
+                    ),
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -106,62 +133,163 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 Text(
                     'Şifrenizi mi unuttunuz?',
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: primaryText,
+                        letterSpacing: -0.5
                     )
                 ),
                 const SizedBox(height: 12),
 
                 Text(
-                  'Endişelenmeyin! Kayıtlı e-posta adresinizi girin, size şifre sıfırlama kodunu gönderelim.',
+                  'Endişelenmeyin! Kayıtlı e-posta adresinizi girin,\nsize şifre sıfırlama kodunu gönderelim.',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.7),
-                      height: 1.5
+                      color: secondaryText,
+                      height: 1.5,
+                      fontWeight: FontWeight.w500
                   ),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 48),
 
-                // --- INPUT ---
-                TextFormField(
+                // --- E-POSTA INPUT ---
+                _buildInputLabel('E-POSTA ADRESİ', inputLabelColor),
+                const SizedBox(height: 8),
+                _buildModernInput(
                   controller: _emailController,
-                  // AppTheme inputDecorationTheme kullandığı için burayı sade tutuyoruz
-                  decoration: const InputDecoration(
-                    labelText: 'E-Posta',
-                    hintText: 'ornek@email.com',
-                    prefixIcon: Icon(Icons.email_outlined),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
+                  hint: 'ornek@email.com',
+                  icon: Icons.alternate_email_rounded,
+                  isDark: isDark,
+                  inputType: TextInputType.emailAddress,
                   validator: (value) {
                     if (value == null || value.trim().isEmpty || !value.contains('@')) {
-                      return 'Lütfen geçerli bir e-posta girin.';
+                      return 'Geçerli bir e-posta girin.';
                     }
                     return null;
                   },
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 40),
 
-                // --- BUTON ---
-                ElevatedButton(
-                  onPressed: authProvider.isLoading ? null : _sendResetLink,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                // --- GÖNDER BUTONU ---
+                Container(
+                  height: 56,
+                  decoration: BoxDecoration(
+                    gradient: buttonGradient,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFF0F172A).withOpacity(0.3),
+                        blurRadius: 20,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
                   ),
-                  child: buttonContent,
+                  child: ElevatedButton(
+                    onPressed: authProvider.isLoading ? null : _sendResetLink,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: authProvider.isLoading
+                        ? SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(color: buttonTextColor, strokeWidth: 2.5)
+                    )
+                        : Text(
+                      'KOD GÖNDER',
+                      style: TextStyle(
+                        color: buttonTextColor,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
                 ),
 
                 const SizedBox(height: 24),
 
                 // --- GERİ DÖN ---
-                TextButton.icon(
+                TextButton(
                   onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.arrow_back, size: 18),
-                  label: const Text('Giriş Sayfasına Dön'),
+                  child: RichText(
+                    text: TextSpan(
+                      style: TextStyle(color: secondaryText, fontFamily: 'Manrope'),
+                      children: [
+                        const TextSpan(text: 'Hatırladınız mı? '),
+                        TextSpan(
+                          text: 'Giriş Yap',
+                          style: TextStyle(color: primaryText, fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // --- YARDIMCI METOTLAR ---
+  Widget _buildInputLabel(String text, Color color) {
+    return Text(
+      text,
+      style: TextStyle(
+        color: color,
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.8,
+      ),
+    );
+  }
+
+  Widget _buildModernInput({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    required bool isDark,
+    TextInputType inputType = TextInputType.text,
+    String? Function(String?)? validator,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: isDark ? null : [
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: inputType,
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: isDark ? Colors.white : const Color(0xFF0F172A),
+        ),
+        decoration: InputDecoration(
+          hintText: hint,
+          prefixIcon: Icon(icon, color: Colors.grey[400]),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+              width: 1.5,
+            ),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1),
+          ),
+          contentPadding: const EdgeInsets.all(20),
+        ),
+        validator: validator,
       ),
     );
   }

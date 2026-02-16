@@ -1,7 +1,10 @@
+// lib/features/showcase/screens/three_d_viewer_screen.dart
+
+import 'dart:ui'; // Glassmorphism için
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import '../../../core/services/api_service.dart'; // AuthProvider yerine ApiService'i import ediyoruz
+import '../../../core/services/api_service.dart';
 
 class ThreeDViewerScreen extends StatefulWidget {
   final String modelUrn;
@@ -23,11 +26,8 @@ class _ThreeDViewerScreenState extends State<ThreeDViewerScreen> {
   String? _htmlContent;
   bool _isPageLoading = true;
 
-  // ================== ANA DÜZELTME BURADA ==================
-  // Ekrana özel bir ApiService instance'ı oluşturuyoruz.
-  // Bu, Provider'a erişim sorununu çözer.
+  // API Service
   final ApiService _apiService = ApiService();
-  // ==========================================================
 
   @override
   void initState() {
@@ -46,11 +46,20 @@ class _ThreeDViewerScreenState extends State<ThreeDViewerScreen> {
       return;
     }
 
-    final htmlString = await rootBundle.loadString('assets/html/autodesk_viewer.html');
-    if (mounted) {
-      setState(() {
-        _htmlContent = htmlString;
-      });
+    try {
+      final htmlString = await rootBundle.loadString('assets/html/autodesk_viewer.html');
+      if (mounted) {
+        setState(() {
+          _htmlContent = htmlString;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = "Viewer dosyaları yüklenemedi: $e";
+          _isPageLoading = false;
+        });
+      }
     }
   }
 
@@ -58,10 +67,7 @@ class _ThreeDViewerScreenState extends State<ThreeDViewerScreen> {
     if (_webViewController == null || !mounted) return;
 
     try {
-      // ================== ANA DÜZELTME BURADA ==================
-      // Artık AuthProvider yerine doğrudan oluşturduğumuz _apiService'i kullanıyoruz.
       final tokenData = await _apiService.getViewerToken();
-      // ==========================================================
 
       if (tokenData == null) {
         throw Exception("Görüntüleyici token'ı alınamadı.");
@@ -74,7 +80,7 @@ class _ThreeDViewerScreenState extends State<ThreeDViewerScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _errorMessage = "Model yüklenirken bir hata oluştu: ${e.toString()}";
+          _errorMessage = "Model yüklenirken hata: ${e.toString()}";
           _isPageLoading = false;
         });
       }
@@ -83,22 +89,20 @@ class _ThreeDViewerScreenState extends State<ThreeDViewerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 3D Görüntülemede tema ne olursa olsun arka plan SİYAH olmalı ki model parlasın.
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-        backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
       backgroundColor: Colors.black,
       body: Stack(
         children: [
+          // 1. WEBVIEW KATMANI
           if (_htmlContent != null)
             InAppWebView(
               initialData: InAppWebViewInitialData(data: _htmlContent!),
               initialSettings: InAppWebViewSettings(
                 javaScriptEnabled: true,
-                transparentBackground: true,
+                transparentBackground: true, // Arka plan şeffaf olsun ki bizim siyah zemin gözüksün
                 useWideViewPort: false,
+                supportZoom: false, // Viewer kendi zoom'unu kullanır
               ),
               onWebViewCreated: (controller) {
                 _webViewController = controller;
@@ -107,7 +111,11 @@ class _ThreeDViewerScreenState extends State<ThreeDViewerScreen> {
                 _injectDataIntoWebView();
               },
               onProgressChanged: (controller, progress) {
-                if (progress == 100 && mounted) {
+                // Autodesk Viewer kendi içinde de yükleme yapar, %100 olması webview'in bittiğini gösterir
+                if (progress == 100 && mounted && _isPageLoading) {
+                  // Yükleme animasyonunu biraz daha tutabiliriz (Viewer init süresi için)
+                  // Ancak şimdilik webview yüklenince loading'i kaldırıyoruz.
+                  // Gerçek model yüklemesini JS tarafı halledecek.
                   setState(() {
                     _isPageLoading = false;
                   });
@@ -115,28 +123,146 @@ class _ThreeDViewerScreenState extends State<ThreeDViewerScreen> {
               },
             ),
 
-          if (_isPageLoading)
-            const Center(
-              child: CircularProgressIndicator(color: Colors.white),
+          // 2. CUSTOM GLASS HEADER (GERİ BUTONU & BAŞLIK)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).padding.top + 8,
+                  bottom: 12,
+                  left: 16,
+                  right: 16
+              ),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.8),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+              child: Row(
+                children: [
+                  _buildGlassIconButton(
+                    icon: Icons.arrow_back_ios_new_rounded,
+                    onTap: () => Navigator.of(context).pop(),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        shadows: [Shadow(color: Colors.black, blurRadius: 10)],
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             ),
+          ),
 
-          if (_errorMessage != null)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
+          // 3. LOADING EKRANI (TAM EKRAN SİYAH)
+          if (_isPageLoading)
+            Container(
+              color: Colors.black,
+              child: Center(
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.cloud_off, color: Colors.red, size: 60),
-                    const SizedBox(height: 16),
-                    const Text('Model Yüklenemedi', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    const CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    const SizedBox(height: 24),
+                    const Text(
+                      '3D Ortam Hazırlanıyor...',
+                      style: TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w500),
+                    ),
                     const SizedBox(height: 8),
-                    Text(_errorMessage!, style: const TextStyle(color: Colors.white70), textAlign: TextAlign.center),
+                    Text(
+                      'Büyük modellerin yüklenmesi zaman alabilir.',
+                      style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12),
+                    ),
                   ],
                 ),
               ),
             ),
+
+          // 4. HATA EKRANI
+          if (_errorMessage != null)
+            Container(
+              color: Colors.black87, // Arka planı hafif karart
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.cloud_off_rounded, color: Colors.red.shade400, size: 48),
+                      ),
+                      const SizedBox(height: 24),
+                      const Text(
+                        'Model Yüklenemedi',
+                        style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _errorMessage!,
+                        style: TextStyle(color: Colors.white.withOpacity(0.7), height: 1.5),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 32),
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.of(context).pop(),
+                        icon: const Icon(Icons.arrow_back),
+                        label: const Text('Geri Dön'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+
+  // --- MODERN GLASS BUTON ---
+  Widget _buildGlassIconButton({required IconData icon, required VoidCallback onTap}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withOpacity(0.2)),
+            ),
+            child: Icon(icon, color: Colors.white, size: 20),
+          ),
+        ),
       ),
     );
   }

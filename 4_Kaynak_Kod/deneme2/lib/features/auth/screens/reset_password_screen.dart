@@ -1,11 +1,10 @@
 // lib/features/auth/screens/reset_password_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // FilteringTextInputFormatter için
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/providers/auth_provider.dart';
-import '../../../core/theme/app_theme.dart';
 import 'login_screen.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
@@ -21,17 +20,14 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
     with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
 
-  // --- YENİ: 6 HANELİ KOD İÇİN CONTROLLER VE FOCUS NODE'LAR ---
+  // --- 6 HANELİ KOD İÇİN ---
   final List<TextEditingController> _codeControllers = List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
-  // ------------------------------------------------------------
 
   final _passwordController = TextEditingController();
 
   late AnimationController _fadeController;
-  late AnimationController _scaleController;
   late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
 
   bool _isPasswordVisible = false;
 
@@ -42,27 +38,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeOut),
-    );
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut),
-    );
-
+    _fadeAnimation = CurvedAnimation(parent: _fadeController, curve: Curves.easeOut);
     _fadeController.forward();
-    _scaleController.forward();
   }
 
   @override
   void dispose() {
     _fadeController.dispose();
-    _scaleController.dispose();
-    // Controller'ları temizle
     for (var controller in _codeControllers) {
       controller.dispose();
     }
@@ -73,7 +55,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
     super.dispose();
   }
 
-  // Kodları birleştirip string yapan yardımcı metod
   String _getCombinedCode() {
     return _codeControllers.map((e) => e.text).join();
   }
@@ -85,12 +66,17 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
     final code = _getCombinedCode();
     if (code.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('Lütfen 6 haneli kodu eksiksiz girin.'), backgroundColor: Colors.orange),
+        SnackBar(
+          content: const Row(children: [Icon(Icons.warning_amber, color: Colors.white), SizedBox(width: 8), Text('Lütfen 6 haneli kodu eksiksiz girin.')]),
+          backgroundColor: Colors.orange.shade800,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
       );
       return;
     }
 
-    // 2. Şifre Kontrolü (Form validate)
+    // 2. Şifre Kontrolü
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
@@ -98,16 +84,18 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     final success = await authProvider.resetPassword(
-      token: code, // Birleştirilmiş kodu gönderiyoruz
+      token: code,
       newPassword: _passwordController.text,
     );
 
     if (mounted) {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Şifreniz başarıyla yenilendi!'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Row(children: [Icon(Icons.check_circle, color: Colors.white), SizedBox(width: 8), Text('Şifreniz başarıyla yenilendi!')]),
+            backgroundColor: Colors.green.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
         Navigator.of(context).pushAndRemoveUntil(
@@ -117,214 +105,175 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(authProvider.lastError ?? 'Bir hata oluştu.'),
-            backgroundColor: Theme.of(context).colorScheme.error,
+            content: Row(children: [const Icon(Icons.error_outline, color: Colors.white), const SizedBox(width: 8), Expanded(child: Text(authProvider.lastError ?? 'Bir hata oluştu.'))]),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
     }
   }
 
-  // --- YENİ: TEK BİR KOD KUTUCUĞU WIDGET'I ---
-  Widget _buildCodeBox(int index, BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      width: 45,
-      height: 55,
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: _codeControllers[index].text.isNotEmpty
-              ? theme.primaryColor
-              : theme.colorScheme.outline.withOpacity(0.3),
-          width: 2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: TextFormField(
-        controller: _codeControllers[index],
-        focusNode: _focusNodes[index],
-        keyboardType: TextInputType.number,
-        textAlign: TextAlign.center,
-        style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: theme.primaryColor),
-        maxLength: 1,
-        // Sadece rakam girilmesine izin ver
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        decoration: const InputDecoration(
-          counterText: "", // Altındaki karakter sayacını gizle
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.zero, // Metni dikeyde ortalamak için
-        ),
-        onChanged: (value) {
-          if (value.isNotEmpty) {
-            // Rakam girildiyse bir sonraki kutuya odaklan
-            if (index < 5) {
-              FocusScope.of(context).requestFocus(_focusNodes[index + 1]);
-            } else {
-              // Son kutuysa klavyeyi kapat
-              FocusScope.of(context).unfocus();
-            }
-          } else {
-            // Silindiyse bir önceki kutuya odaklan (Opsiyonel, kullanıcı deneyimi için iyi)
-            if (index > 0) {
-              FocusScope.of(context).requestFocus(_focusNodes[index - 1]);
-            }
-          }
-          // Kutucuğun sınır rengini güncellemek için setState
-          setState(() {});
-        },
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     final authProvider = context.watch<AuthProvider>();
-    final isDarkMode = theme.brightness == Brightness.dark;
 
-    final primaryGradient = isDarkMode
-        ? AppTheme.darkPrimaryGradient
-        : AppTheme.lightPrimaryGradient;
+    // --- RENK PALETİ ---
+    final primaryText = isDark ? Colors.white : const Color(0xFF0F172A);
+    final secondaryText = isDark ? Colors.grey[400]! : const Color(0xFF64748B);
+    final inputLabelColor = isDark ? const Color(0xFFE0E0E0) : const Color(0xFF334155);
+
+    // Buton Gradiyeni
+    final buttonGradient = isDark
+        ? const LinearGradient(colors: [Color(0xFFFFFFFF), Color(0xFFE2E8F0)])
+        : const LinearGradient(colors: [Color(0xFF1E293B), Color(0xFF020617)]);
+
+    final buttonTextColor = isDark ? Colors.black : Colors.white;
 
     return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Yeni Şifre Belirle'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         centerTitle: true,
+        leading: Container(
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.white.withOpacity(0.1) : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+          ),
+          child: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: primaryText),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        title: Text(
+          'Şifre Yenileme',
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: primaryText,
+            letterSpacing: -0.5,
+          ),
+        ),
       ),
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeAnimation,
-          child: ScaleTransition(
-            scale: _scaleAnimation,
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // --- İKON ---
-                      Center(
-                        child: Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            gradient: primaryGradient,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: theme.primaryColor.withOpacity(0.3),
-                                blurRadius: 15,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.lock_reset_rounded,
-                            size: 50,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-
-                      // --- BAŞLIK ---
-                      Text(
-                        'Yeni Şifre Oluştur',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.onBackground,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // --- BİLGİ KUTUSU ---
-                      Container(
-                        padding: const EdgeInsets.all(16),
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // --- MODERN İKON ALANI ---
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.primary.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: theme.colorScheme.primary.withOpacity(0.2)),
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.email_outlined, size: 18, color: theme.colorScheme.primary),
-                                const SizedBox(width: 8),
-                                Flexible(
-                                  child: Text(
-                                    widget.email,
-                                    style: theme.textTheme.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: theme.colorScheme.primary,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'adresine gönderilen 6 haneli kodu girin.',
-                              textAlign: TextAlign.center,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(0.8),
-                              ),
+                          color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
                             ),
                           ],
                         ),
+                        child: Icon(
+                          Icons.lock_reset_rounded,
+                          size: 48,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
                       ),
+                    ),
+                    const SizedBox(height: 32),
 
-                      const SizedBox(height: 32),
-
-                      // --- 6 HANELİ KOD GİRİŞİ (YENİ) ---
-                      Text(
-                          'Sıfırlama Kodu',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.secondary)
+                    Text(
+                      'Doğrulama Kodu',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: primaryText,
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(6, (index) => _buildCodeBox(index, context)),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // E-posta Bilgisi (Vurgulu)
+                    RichText(
+                      textAlign: TextAlign.center,
+                      text: TextSpan(
+                        style: TextStyle(color: secondaryText, fontSize: 14, height: 1.5),
+                        children: [
+                          const TextSpan(text: 'Lütfen '),
+                          TextSpan(
+                            text: widget.email,
+                            style: TextStyle(fontWeight: FontWeight.w700, color: primaryText),
+                          ),
+                          const TextSpan(text: ' adresine gönderilen\n6 haneli kodu girin.'),
+                        ],
                       ),
+                    ),
 
-                      const SizedBox(height: 32),
+                    const SizedBox(height: 40),
 
-                      // --- YENİ ŞİFRE ALANI ---
-                      Text('Yeni Şifre', style: theme.textTheme.labelLarge),
-                      const SizedBox(height: 8),
-                      TextFormField(
+                    // --- 6 HANELİ KOD (YENİLENMİŞ) ---
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(6, (index) => _buildModernCodeBox(index, isDark, theme)),
+                    ),
+
+                    const SizedBox(height: 40),
+
+                    // --- YENİ ŞİFRE ALANI ---
+                    _buildInputLabel('YENİ ŞİFRE', inputLabelColor),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: isDark ? null : [
+                          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+                        ],
+                      ),
+                      child: TextFormField(
                         controller: _passwordController,
                         obscureText: !_isPasswordVisible,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
                         decoration: InputDecoration(
-                          hintText: 'Güçlü bir şifre oluşturun',
-                          prefixIcon: const Icon(Icons.lock_outline_rounded),
+                          hintText: 'En az 6 karakter',
+                          hintStyle: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500),
+                          prefixIcon: Icon(Icons.lock_outline_rounded, color: Colors.grey[400]),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _isPasswordVisible
-                                  ? Icons.visibility_off_outlined
-                                  : Icons.visibility_outlined,
+                              _isPasswordVisible ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                              color: Colors.grey[400],
                             ),
-                            onPressed: () {
-                              setState(() {
-                                _isPasswordVisible = !_isPasswordVisible;
-                              });
-                            },
+                            onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
                           ),
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                width: 1.5
+                            ),
+                          ),
+                          errorBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: const BorderSide(color: Color(0xFFEF4444), width: 1),
+                          ),
+                          contentPadding: const EdgeInsets.all(20),
                         ),
                         validator: (value) {
                           if (value == null || value.length < 6) {
@@ -333,71 +282,145 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen>
                           return null;
                         },
                       ),
-                      const SizedBox(height: 40),
+                    ),
 
-                      // --- BUTON ---
-                      InkWell(
-                        onTap: authProvider.isLoading ? null : _submitResetPassword,
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          decoration: BoxDecoration(
-                            gradient: primaryGradient,
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: theme.primaryColor.withOpacity(0.4),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
+                    const SizedBox(height: 48),
+
+                    // --- SIFIRLA BUTONU ---
+                    Container(
+                      height: 56,
+                      decoration: BoxDecoration(
+                        gradient: buttonGradient,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: isDark ? Colors.white.withOpacity(0.1) : const Color(0xFF0F172A).withOpacity(0.3),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
                           ),
-                          child: authProvider.isLoading
-                              ? const Center(
-                            child: SizedBox(
-                              height: 24,
-                              width: 24,
-                              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                            ),
-                          )
-                              : const Text(
-                            'ŞİFREYİ SIFIRLA',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
-                            ),
+                        ],
+                      ),
+                      child: ElevatedButton(
+                        onPressed: authProvider.isLoading ? null : _submitResetPassword,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        child: authProvider.isLoading
+                            ? SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(color: buttonTextColor, strokeWidth: 2.5),
+                        )
+                            : Text(
+                          'ŞİFREYİ SIFIRLA',
+                          style: TextStyle(
+                            color: buttonTextColor,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
+                    ),
 
-                      const SizedBox(height: 24),
+                    const SizedBox(height: 24),
 
-                      // Yardım Metni
-                      Center(
-                        child: TextButton.icon(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Lütfen spam/gereksiz klasörünü kontrol edin.")),
-                            );
-                          },
-                          icon: Icon(Icons.help_outline, size: 16, color: theme.colorScheme.secondary),
-                          label: Text(
-                            'Kodu alamadınız mı?',
-                            style: TextStyle(color: theme.colorScheme.secondary),
+                    // Yardım
+                    Center(
+                      child: TextButton(
+                        onPressed: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Lütfen spam/gereksiz klasörünü kontrol edin.")),
+                          );
+                        },
+                        child: Text(
+                          'Kodu alamadınız mı?',
+                          style: TextStyle(
+                            color: secondaryText,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  // --- MODERN KOD KUTUCUĞU ---
+  Widget _buildModernCodeBox(int index, bool isDark, ThemeData theme) {
+    return Container(
+      width: 48,
+      height: 60,
+      margin: const EdgeInsets.symmetric(horizontal: 5),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: isDark ? null : [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          // Doluysa veya odaklıysa sınır rengi değişsin
+          color: _codeControllers[index].text.isNotEmpty || _focusNodes[index].hasFocus
+              ? (isDark ? Colors.white : const Color(0xFF0F172A))
+              : Colors.transparent,
+          width: 1.5,
+        ),
+      ),
+      child: TextFormField(
+        controller: _codeControllers[index],
+        focusNode: _focusNodes[index],
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.w800,
+          color: isDark ? Colors.white : const Color(0xFF0F172A),
+        ),
+        maxLength: 1,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        decoration: const InputDecoration(
+          counterText: "",
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(vertical: 12), // Ortala
+        ),
+        onChanged: (value) {
+          if (value.isNotEmpty) {
+            if (index < 5) {
+              FocusScope.of(context).requestFocus(_focusNodes[index + 1]);
+            } else {
+              FocusScope.of(context).unfocus();
+            }
+          } else {
+            if (index > 0) {
+              FocusScope.of(context).requestFocus(_focusNodes[index - 1]);
+            }
+          }
+          setState(() {}); // Sınır rengini güncelle
+        },
+      ),
+    );
+  }
+
+  Widget _buildInputLabel(String text, Color color) {
+    return Text(
+      text,
+      style: TextStyle(
+        color: color,
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.8,
       ),
     );
   }

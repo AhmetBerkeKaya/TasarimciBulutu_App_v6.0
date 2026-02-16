@@ -1,5 +1,6 @@
 // lib/features/auth/screens/home_screen.dart
 
+import 'dart:ui'; // Blur efekti için gerekli
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -14,7 +15,6 @@ import '../../project/screens/project_list_screen.dart';
 import '../../showcase/screens/showcase_feed_screen.dart';
 import '../../activity/screens/activity_screen.dart';
 
-
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -25,38 +25,38 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
-  // --- FREELANCER İÇİN NAVİGASYON (5 MADDE) ---
+  // --- FREELANCER SAYFALARI ---
   static const List<Widget> _freelancerPages = [
-    ShowcaseFeedScreen(),     // 1. Ana Sayfa (Vitrini)
-    ProjectListScreen(),      // 2. İş İlanları
-    ActivityScreen(),         // 3. Aktivitem (Başvurular + Projeler)
-    MessageListScreen(),      // 4. Mesajlar
-    ProfileScreen(),          // 5. Profil
+    ShowcaseFeedScreen(),
+    ProjectListScreen(),
+    ActivityScreen(),
+    MessageListScreen(),
+    ProfileScreen(),
   ];
 
-  static const List<BottomNavigationBarItem> _freelancerNavItems = [
-    BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Ana Sayfa'),
-    BottomNavigationBarItem(icon: Icon(Icons.work_outline_rounded), label: 'İş İlanları'),
-    BottomNavigationBarItem(icon: Icon(Icons.assessment_outlined), label: 'Aktivitem'),
-    BottomNavigationBarItem(icon: Icon(Icons.message_outlined), label: 'Mesajlar'),
-    BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profil'),
-  ];
-
-  // --- FİRMA (CLIENT) İÇİN NAVİGASYON (4 MADDE) ---
+  // --- CLIENT SAYFALARI ---
   static const List<Widget> _clientPages = [
-    DashboardScreen(),        // 1. Panelim (Kendi Projeleri)
-    ShowcaseFeedScreen(),     // 2. Vitrini Keşfet (Tasarımcı Bul)
-    MessageListScreen(),      // 3. Mesajlar
-    ProfileScreen(),          // 4. Profil
+    DashboardScreen(),
+    ShowcaseFeedScreen(),
+    MessageListScreen(),
+    ProfileScreen(),
   ];
 
-  static const List<BottomNavigationBarItem> _clientNavItems = [
-    BottomNavigationBarItem(icon: Icon(Icons.dashboard_rounded), label: 'Panelim'),
-    BottomNavigationBarItem(icon: Icon(Icons.search_rounded), label: 'Keşfet'),
-    BottomNavigationBarItem(icon: Icon(Icons.message_outlined), label: 'Mesajlar'),
-    BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profil'),
+  // Navigasyon Öğeleri (Custom Yapı için Map Listesi)
+  final List<Map<String, dynamic>> _freelancerNavItems = [
+    {'icon': Icons.home_rounded, 'label': 'Ana Sayfa'},
+    {'icon': Icons.work_outline_rounded, 'label': 'İşler'},
+    {'icon': Icons.assessment_outlined, 'label': 'Aktivite'},
+    {'icon': Icons.chat_bubble_outline_rounded, 'label': 'Mesaj'},
+    {'icon': Icons.person_outline_rounded, 'label': 'Profil'},
   ];
 
+  final List<Map<String, dynamic>> _clientNavItems = [
+    {'icon': Icons.dashboard_rounded, 'label': 'Panel'},
+    {'icon': Icons.explore_outlined, 'label': 'Keşfet'},
+    {'icon': Icons.chat_bubble_outline_rounded, 'label': 'Mesaj'},
+    {'icon': Icons.person_outline_rounded, 'label': 'Profil'},
+  ];
 
   void _onItemTapped(int index) {
     setState(() {
@@ -66,48 +66,119 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Rol Kontrolü
     final user = context.watch<AuthProvider>().user;
     final isClient = user?.role == UserRole.client;
 
     final List<Widget> pages = isClient ? _clientPages : _freelancerPages;
-    final List<BottomNavigationBarItem> navItems = isClient ? _clientNavItems : _freelancerNavItems;
+    final List<Map<String, dynamic>> navItems = isClient ? _clientNavItems : _freelancerNavItems;
 
-    // Güvenlik kontrolü: Index liste dışına taşarsa sıfırla
+    // Index taşması güvenliği
     if (_selectedIndex >= pages.length) {
       _selectedIndex = 0;
     }
 
-    final theme = Theme.of(context);
-
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: pages,
-      ),
-      bottomNavigationBar: Container(
-        // Hafif bir gölge ekleyerek tab bar'ı içerikten ayıralım (Cila)
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
+      extendBody: true, // İçeriğin barın arkasına taşmasını sağlar (Glass effect için şart)
+
+      // ÇAKIŞMA ÇÖZÜMÜ:
+      // Alt ekranlara (ShowcaseFeedScreen vb.) ekstra bir 'bottom padding' enjekte ediyoruz.
+      // Böylece o ekranlar FAB'larını bu boşluğun (yani bizim Nav Bar'ımızın) üzerine çiziyor.
+      body: MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          padding: MediaQuery.of(context).padding.copyWith(
+            // Mevcut güvenli alana +90px ekleyerek FAB'ı yukarı itiyoruz.
+            // Bu, içeriğin barın arkasına geçmesini engellemez, sadece FAB'ı etkiler.
+            bottom: MediaQuery.of(context).padding.bottom + 90.0,
+          ),
         ),
-        child: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          currentIndex: _selectedIndex,
-          onTap: _onItemTapped,
-          items: navItems,
-          // Tema Ayarları (AppTheme ile uyumlu)
-          backgroundColor: theme.bottomNavigationBarTheme.backgroundColor,
-          selectedItemColor: theme.bottomNavigationBarTheme.selectedItemColor,
-          unselectedItemColor: theme.bottomNavigationBarTheme.unselectedItemColor,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 12),
-          showUnselectedLabels: true,
-          elevation: 0, // Container'da gölge verdiğimiz için burada 0 yapıyoruz
+        child: IndexedStack(
+          index: _selectedIndex,
+          children: pages,
+        ),
+      ),
+      bottomNavigationBar: _buildGlassBottomBar(context, navItems),
+    );
+  }
+
+  Widget _buildGlassBottomBar(BuildContext context, List<Map<String, dynamic>> items) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // "Grimsi" ve Opaklığı düşük renk paleti
+    final backgroundColor = isDark
+        ? const Color(0xFF121212).withOpacity(0.85) // Dark Mode: Çok koyu gri/siyah
+        : const Color(0xFFB5B5B5).withOpacity(0.85); // Light Mode: Koyu Antrasit Gri
+
+    return ClipRRect(
+      // Sadece üst köşeleri hafif yuvarlatarak modern bir bitiş sağlıyoruz
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15), // Buzlu cam efekti
+        child: Container(
+          color: backgroundColor,
+          padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).padding.bottom > 0 ? MediaQuery.of(context).padding.bottom : 20,
+              top: 16,
+              left: 12,
+              right: 12
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(items.length, (index) {
+              final isSelected = _selectedIndex == index;
+              final item = items[index];
+
+              return Expanded(
+                child: InkWell(
+                  onTap: () => _onItemTapped(index),
+                  // Tıklama efekti için yuvarlak sınır
+                  borderRadius: BorderRadius.circular(16),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOutQuart,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: isSelected
+                        ? BoxDecoration(
+                      // Seçili olduğunda arkaya çok hafif bir aydınlık veriyoruz
+                      color: Colors.white.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(16),
+                    )
+                        : const BoxDecoration(color: Colors.transparent),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // İKON
+                        Icon(
+                          item['icon'] as IconData,
+                          // Seçiliyse Tam Beyaz, değilse opak siyah/beyaz
+                          color: isSelected
+                              ? Colors.white
+                              : (isDark ? Colors.white.withOpacity(0.4) : Colors.black.withOpacity(0.5)),
+                          size: 26,
+                        ),
+
+                        // YAZI
+                        const SizedBox(height: 4),
+                        AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 200),
+                          style: TextStyle(
+                            fontFamily: theme.textTheme.bodyMedium?.fontFamily,
+                            fontSize: 11,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected
+                                ? Colors.white
+                                : (isDark ? Colors.white.withOpacity(0.4) : Colors.black.withOpacity(0.5)),
+                          ),
+                          child: Text(item['label']),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
         ),
       ),
     );

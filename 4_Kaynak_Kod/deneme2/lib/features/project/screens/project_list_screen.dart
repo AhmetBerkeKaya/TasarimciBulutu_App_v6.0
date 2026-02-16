@@ -1,10 +1,10 @@
 // lib/features/project/screens/project_list_screen.dart
 
 import 'dart:async';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-
 import 'package:provider/provider.dart';
+
+// Bileşenler
 import '../../../common_widgets/empty_state.dart';
 import '../../../common_widgets/project_card_skeleton.dart';
 import '../../../core/providers/project_provider.dart';
@@ -27,14 +27,9 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
   @override
   void initState() {
     super.initState();
-    // Ekran açıldığında hem normal projeleri hem de önerilenleri çek
     Future.microtask(() {
       final provider = context.read<ProjectProvider>();
-
-      // --- DÜZELTME: ÖNCE FİLTRELERİ TEMİZLE ---
-      // Bu satır, önceki oturumdan kalan "kategori=Mimari" gibi filtreleri siler.
       provider.clearFiltersAndFetch();
-
       provider.fetchRecommendedProjects();
     });
     _searchController.addListener(_onSearchChanged);
@@ -43,7 +38,6 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
   void _onSearchChanged() {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () {
-      // Sadece arama sorgusunu uygula, diğer filtreler kalsın
       final provider = context.read<ProjectProvider>();
       provider.applyFiltersAndFetch(
         searchQuery: _searchController.text,
@@ -54,87 +48,164 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
       );
     });
   }
+
   @override
   void dispose() {
-    _searchController.removeListener(_onSearchChanged); // removeListener eklemek iyi bir pratiktir
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _debounce?.cancel();
     super.dispose();
   }
 
-  // project_list_screen.dart - Responsive düzeltmeler
-
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    // Modern Renkler
+    final bgColor = isDark ? const Color(0xFF181A20) : const Color(0xFFF0F2F5);
+    final searchBgColor = isDark ? const Color(0xFF262A35) : Colors.white;
+    final primaryTextColor = isDark ? Colors.white : const Color(0xFF0F172A);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Proje İlanları'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            tooltip: 'Filtrele',
-            onPressed: () => showModalBottomSheet(
-              context: context,
-              builder: (context) => FilterSheet(currentSearchQuery: _searchController.text),
-              isScrollControlled: true,
-            ),
-          ),
-        ],
-      ),
+      backgroundColor: bgColor,
       body: Consumer<ProjectProvider>(
         builder: (context, projectProvider, child) {
           return RefreshIndicator(
+            color: isDark ? Colors.white : Colors.black,
+            backgroundColor: isDark ? const Color(0xFF262A35) : Colors.white,
             onRefresh: () async {
               await projectProvider.fetchOpenProjects();
               await projectProvider.fetchRecommendedProjects();
             },
             child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
               slivers: [
-                // Arama kutusu - responsive padding
+                // 1. MODERN APP BAR (SLIVER)
+                SliverAppBar(
+                  expandedHeight: 120,
+                  floating: true,
+                  pinned: true,
+                  elevation: 0,
+                  backgroundColor: bgColor,
+                  surfaceTintColor: Colors.transparent,
+                  flexibleSpace: FlexibleSpaceBar(
+                    titlePadding: const EdgeInsets.only(left: 24, bottom: 16),
+                    centerTitle: false,
+                    title: Text(
+                      'Proje İlanları',
+                      style: TextStyle(
+                        fontFamily: 'Manrope',
+                        fontWeight: FontWeight.w800,
+                        color: primaryTextColor,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ),
+                  actions: [
+                    Container(
+                      margin: const EdgeInsets.only(right: 16),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          if (!isDark)
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: Icon(Icons.tune_rounded, color: primaryTextColor),
+                        tooltip: 'Filtrele',
+                        onPressed: () => showModalBottomSheet(
+                          context: context,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => FilterSheet(currentSearchQuery: _searchController.text),
+                          isScrollControlled: true,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                // 2. ARAMA ÇUBUĞU (YÜZEN)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                        MediaQuery.of(context).size.width * 0.04, // Responsive left padding
-                        MediaQuery.of(context).size.width * 0.04, // Responsive top padding
-                        MediaQuery.of(context).size.width * 0.04, // Responsive right padding
-                        MediaQuery.of(context).size.width * 0.02  // Responsive bottom padding
-                    ),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: const InputDecoration(
-                        hintText: 'Proje başlığı veya açıklaması ara...',
-                        prefixIcon: Icon(Icons.search),
-                        border: OutlineInputBorder(),
+                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: searchBgColor,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
                       ),
-                      style: TextStyle(
-                        fontSize: MediaQuery.of(context).size.width * 0.04, // Responsive font size
+                      child: TextField(
+                        controller: _searchController,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: primaryTextColor,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Proje başlığı veya açıklama...',
+                          hintStyle: TextStyle(
+                            color: isDark ? Colors.grey[500] : Colors.grey[400],
+                            fontWeight: FontWeight.w500,
+                          ),
+                          prefixIcon: Icon(
+                              Icons.search_rounded,
+                              color: isDark ? Colors.grey[400] : const Color(0xFF0F172A)
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        ),
                       ),
                     ),
                   ),
                 ),
 
-                // --- ÖNERİLENLER BÖLÜMÜ (GÜNCELLENDİ) ---
+                // 3. ÖNERİLENLER BÖLÜMÜ
                 if (projectProvider.isRecommendationsLoading)
-                  const SliverToBoxAdapter(child: Center(child: Padding(padding: EdgeInsets.all(16.0), child: CircularProgressIndicator()))),
+                  const SliverToBoxAdapter(child: Center(child: Padding(padding: EdgeInsets.all(24.0), child: CircularProgressIndicator()))),
 
                 if (!projectProvider.isRecommendationsLoading && projectProvider.recommendedProjects.isNotEmpty)
                   SliverToBoxAdapter(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Padding(
-                          padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                          child: Text("Sizin İçin Önerilenler", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                          child: Row(
+                            children: [
+                              Icon(Icons.auto_awesome, size: 18, color: theme.primaryColor),
+                              const SizedBox(width: 8),
+                              Text(
+                                "Sizin İçin Önerilenler",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: primaryTextColor,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         SizedBox(
-                          height: 190, // Yeni kartın yüksekliğine göre ayarlandı
-                          child: ListView.builder(
+                          height: 200, // Kart yüksekliği
+                          child: ListView.separated(
                             scrollDirection: Axis.horizontal,
-                            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                            padding: const EdgeInsets.symmetric(horizontal: 24.0),
                             itemCount: projectProvider.recommendedProjects.length,
+                            separatorBuilder: (context, index) => const SizedBox(width: 16),
                             itemBuilder: (context, index) {
                               final project = projectProvider.recommendedProjects[index];
-                              // YENİ KART WIDGET'INI KULLANIYORUZ
                               return RecommendedProjectCard(
                                 project: project,
                                 onTap: () {
@@ -146,19 +217,34 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
                             },
                           ),
                         ),
-                        const Divider(height: 32, indent: 16, endIndent: 16),
+                        const SizedBox(height: 32),
+                        Divider(height: 1, indent: 24, endIndent: 24, color: isDark ? Colors.white10 : Colors.grey[200]),
+                        const SizedBox(height: 32),
                       ],
                     ),
                   ),
-                // TÜM PROJELER BÖLÜMÜ
+
+                // 4. TÜM PROJELER BAŞLIĞI
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                    child: Text(
+                      "Tüm İlanlar",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: primaryTextColor,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // 5. PROJE LİSTESİ
                 if (projectProvider.isLoading && projectProvider.allOpenProjects.isEmpty)
                   SliverList(
                     delegate: SliverChildBuilderDelegate(
                           (context, index) => Padding(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: MediaQuery.of(context).size.width * 0.04,
-                            vertical: MediaQuery.of(context).size.width * 0.02
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                         child: const ProjectCardSkeleton(),
                       ),
                       childCount: 5,
@@ -167,8 +253,8 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
                 else if (projectProvider.allOpenProjects.isEmpty)
                   const SliverFillRemaining(
                     child: EmptyState(
-                      icon: Icons.search_off,
-                      message: 'Aktif proje ilanı bulunamadı.',
+                      icon: Icons.search_off_rounded,
+                      message: 'Aradığınız kriterlere uygun proje bulunamadı.',
                     ),
                   )
                 else
@@ -177,10 +263,7 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
                           (context, index) {
                         final project = projectProvider.allOpenProjects[index];
                         return Padding(
-                          padding: EdgeInsets.symmetric(
-                              horizontal: MediaQuery.of(context).size.width * 0.04,
-                              vertical: MediaQuery.of(context).size.width * 0.02
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                           child: ProjectCard(
                             project: project,
                             onTap: () {
@@ -194,6 +277,9 @@ class _ProjectListScreenState extends State<ProjectListScreen> {
                       childCount: projectProvider.allOpenProjects.length,
                     ),
                   ),
+
+                // 6. ALT BOŞLUK (Nav Bar için)
+                const SliverToBoxAdapter(child: SizedBox(height: 100)),
               ],
             ),
           );

@@ -1,18 +1,24 @@
-// lib/features/showcase/screens/showcase_feed_screen.dart (GÜNCELLENMİŞ HALİ)
+// lib/features/showcase/screens/showcase_feed_screen.dart
 
-import 'dart:async'; // <-- DEBOUNCER İÇİN EKLENDİ
+import 'dart:async';
+import 'dart:ui'; // Glass effect için gerekli
 import 'package:flutter/material.dart';
 import 'package:badges/badges.dart' as badges;
 import 'package:provider/provider.dart';
-import '../../../core/providers/notification_provider.dart';
+
+// Modeller ve Enumlar
+import '../../../data/models/enums.dart';
+
+// Providerlar
+import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/showcase_provider.dart';
+import '../../../core/providers/notification_provider.dart';
+
+// Ekranlar ve Widgetlar
 import '../../notifications/screens/notification_screen.dart';
 import '../widgets/filter_sheet.dart';
 import '../widgets/post_card.dart';
 import 'create_post_screen.dart';
-import '../../../data/models/enums.dart'; // UserRole enum'ı için
-import '../../../core/providers/auth_provider.dart'; // Kullanıcı bilgisi için
-
 
 class ShowcaseFeedScreen extends StatefulWidget {
   const ShowcaseFeedScreen({super.key});
@@ -23,17 +29,22 @@ class ShowcaseFeedScreen extends StatefulWidget {
 
 class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
     with TickerProviderStateMixin {
+  // Controllerlar
   final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
 
+  // Animasyon Controllerları
   late AnimationController _fabAnimationController;
   late AnimationController _headerAnimationController;
   late AnimationController _searchAnimationController;
+
+  // Animasyon Değerleri
   late Animation<double> _fabAnimation;
   late Animation<Offset> _headerSlideAnimation;
   late Animation<double> _headerFadeAnimation;
   late Animation<double> _searchAnimation;
 
+  // State Değişkenleri
   bool _showScrollToTop = false;
   bool _isRefreshing = false;
   bool _isSearchExpanded = false;
@@ -48,22 +59,25 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
     _setupInitialData();
     _scrollController.addListener(_onScroll);
 
-    // === FAZ 1 DÜZELTMESİ: BİLDİRİM SAYAÇ GÜNCELLEME ===
-    // 1. Ekran açılır açılmaz sayacı çek
+    // --- BİLDİRİM SİSTEMİ ---
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<NotificationProvider>(context, listen: false).fetchUnreadCount();
+      _checkNotificationsSafe();
     });
 
-    // 2. Her 30 saniyede bir sessizce güncelle (Polling)
     _notificationTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
       if (mounted) {
-        Provider.of<NotificationProvider>(context, listen: false).fetchUnreadCount();
+        _checkNotificationsSafe();
       }
     });
-    // ===================================================
   }
 
-  // ... ( _initializeAnimations() fonksiyonu aynı, değişiklik yok) ...
+  void _checkNotificationsSafe() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    if (authProvider.user != null) {
+      Provider.of<NotificationProvider>(context, listen: false).fetchUnreadCount();
+    }
+  }
+
   void _initializeAnimations() {
     _fabAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -77,10 +91,12 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
+
     _fabAnimation = CurvedAnimation(
       parent: _fabAnimationController,
       curve: Curves.elasticOut,
     );
+
     _headerSlideAnimation = Tween<Offset>(
       begin: const Offset(0, -0.3),
       end: Offset.zero,
@@ -88,26 +104,22 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
       parent: _headerAnimationController,
       curve: Curves.easeOutCubic,
     ));
+
     _headerFadeAnimation = CurvedAnimation(
       parent: _headerAnimationController,
       curve: Curves.easeInOut,
     );
+
     _searchAnimation = CurvedAnimation(
       parent: _searchAnimationController,
       curve: Curves.easeInOutCubic,
     );
   }
-  // ==============================================================
-
 
   void _setupInitialData() {
     Future.microtask(() {
       final provider = Provider.of<ShowcaseProvider>(context, listen: false);
-
-      // === DEĞİŞİKLİK BURADA (2/4) ===
-      // Arama çubuğunu, provider'daki mevcut arama terimiyle senkronize et
       _searchController.text = provider.searchQuery;
-      // ===============================
 
       if (provider.state == ShowcaseState.initial) {
         provider.fetchPosts();
@@ -117,12 +129,12 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
     });
   }
 
-  // ... ( _onScroll() fonksiyonu aynı, değişiklik yok) ...
   void _onScroll() {
     final showButton = _scrollController.offset > 300;
     if (showButton != _showScrollToTop) {
       setState(() => _showScrollToTop = showButton);
     }
+
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       final provider = Provider.of<ShowcaseProvider>(context, listen: false);
@@ -131,21 +143,19 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
       }
     }
   }
-  // =======================================================
-
 
   Future<void> _handleRefresh() async {
     if (_isRefreshing) return;
     setState(() => _isRefreshing = true);
+
     _searchController.clear();
     await Provider.of<ShowcaseProvider>(context, listen: false).searchPosts('');
-    // Yenileme yaparken bildirimleri de güncelle
-    if(mounted) await Provider.of<NotificationProvider>(context, listen: false).fetchUnreadCount();
+    _checkNotificationsSafe();
+
     await Future.delayed(const Duration(milliseconds: 500));
     if (mounted) setState(() => _isRefreshing = false);
   }
 
-  // ... ( _scrollToTop() fonksiyonu aynı, değişiklik yok) ...
   void _scrollToTop() {
     _scrollController.animateTo(
       0,
@@ -153,94 +163,86 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
       curve: Curves.easeInOutQuart,
     );
   }
-  // ======================================================
 
   void _toggleSearch() {
     setState(() => _isSearchExpanded = !_isSearchExpanded);
 
     if (_isSearchExpanded) {
       _searchAnimationController.forward();
-      // Odaklanmayı daha yumuşak hale getir
       Future.delayed(const Duration(milliseconds: 300), () {
-        if(mounted) FocusScope.of(context).requestFocus(FocusNode());
+        if (mounted) FocusScope.of(context).requestFocus(FocusNode());
       });
     } else {
       _searchAnimationController.reverse();
       _searchController.clear();
-      // === DEĞİŞİKLİK BURADA (4/4) ===
-      // Arama çubuğu kapandığında provider'ı da temizle ve yeniden yükle
       Provider.of<ShowcaseProvider>(context, listen: false).searchPosts('');
-      // ===============================
       FocusScope.of(context).unfocus();
     }
   }
 
-  // === DEĞİŞİKLİK BURADA (5/4) ===
-  // _onSearchChanged fonksiyonu artık provider'ı tetikliyor (debouncer ile)
   void _onSearchChanged(String query) {
-    // Önceki gecikmeli aramayı iptal et
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-
-    // Kullanıcı yazmayı bıraktıktan 500ms sonra aramayı başlat
     _debounce = Timer(const Duration(milliseconds: 500), () {
-      // Provider'daki arama fonksiyonunu çağır
       Provider.of<ShowcaseProvider>(context, listen: false).searchPosts(query);
     });
   }
-  // ===============================
 
   @override
   void dispose() {
-    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _searchController.dispose();
     _fabAnimationController.dispose();
     _headerAnimationController.dispose();
     _searchAnimationController.dispose();
-    _debounce?.cancel(); // <-- Debouncer'ı dispose et
+    _debounce?.cancel();
+    _notificationTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // ... (build fonksiyonunun geri kalanı aynı, değişiklik yok) ...
-    // Sadece _buildSearchBar içindeki _onSearchChanged artık
-    // debouncer'lı yeni fonksiyonumuzu kullanacak.
-
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+
+    // --- YENİ RENK PALETİ ---
+    final backgroundColor = isDark ? const Color(0xFF181A20) : const Color(0xFFF0F2F5);
     final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0A0A0A) : const Color(0xFFFAFAFA),
+      backgroundColor: backgroundColor,
       body: RefreshIndicator(
         onRefresh: _handleRefresh,
-        color: theme.primaryColor,
-        backgroundColor: theme.cardColor,
-        strokeWidth: 2.5,
+        color: isDark ? Colors.white : Colors.black, // Monokrom loader
+        backgroundColor: isDark ? const Color(0xFF262A35) : Colors.white,
         child: CustomScrollView(
           controller: _scrollController,
           physics: const BouncingScrollPhysics(),
           slivers: [
-            _buildModernAppBar(theme, isDark),
+            _buildModernAppBar(theme, isDark, backgroundColor),
             _buildSearchBar(theme, isDark),
-            const SliverToBoxAdapter(child: SizedBox(height: 8)),
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
             _buildContent(),
-            const SliverToBoxAdapter(child: SizedBox(height: 100)),
+            const SliverToBoxAdapter(child: SizedBox(height: 150)), // Alttan daha fazla boşluk
           ],
         ),
       ),
       floatingActionButton: isKeyboardVisible ? null : _buildFloatingActionButtons(theme, isDark),
+      // Butonu ekranın sağına yasla
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
-  Widget _buildModernAppBar(ThemeData theme, bool isDark) {
+  // --- MODERN APP BAR ---
+  Widget _buildModernAppBar(ThemeData theme, bool isDark, Color bgColor) {
+    final primaryColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final secondaryColor = isDark ? Colors.grey[400] : Colors.grey[600];
+
     return SliverAppBar(
-      expandedHeight: 140,
+      expandedHeight: 130,
       floating: true,
       pinned: true,
       elevation: 0,
-      backgroundColor: isDark ? const Color(0xFF0A0A0A) : Colors.white,
+      backgroundColor: bgColor,
       surfaceTintColor: Colors.transparent,
       flexibleSpace: FlexibleSpaceBar(
         background: SlideTransition(
@@ -248,89 +250,56 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
           child: FadeTransition(
             opacity: _headerFadeAnimation,
             child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: isDark
-                      ? [
-                    const Color(0xFF1A1A1A),
-                    const Color(0xFF0A0A0A),
-                  ]
-                      : [
-                    Colors.white,
-                    Colors.grey.shade50,
-                  ],
-                ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 60, 24, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Row(
-                      children: [
-                        _buildGlassContainer(
-                          theme: theme,
-                          isDark: isDark,
-                          child: Icon(
-                            Icons.auto_awesome,
-                            color: theme.primaryColor,
-                            size: 28,
-                          ),
-                        ),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              ShaderMask(
-                                shaderCallback: (bounds) => LinearGradient(
-                                  colors: [
-                                    theme.primaryColor,
-                                    theme.primaryColor.withOpacity(0.7),
-                                  ],
-                                ).createShader(bounds),
-                                child: Text(
-                                  'Proje Vitrini',
-                                  style: theme.textTheme.headlineMedium?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                    letterSpacing: -0.5,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'İlham veren projeler keşfet',
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  color: isDark ? Colors.grey[400] : Colors.grey[600],
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
+              padding: const EdgeInsets.fromLTRB(24, 60, 24, 10),
+              alignment: Alignment.bottomLeft,
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white.withOpacity(0.1) : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: isDark ? null : [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
-                  ],
-                ),
+                    child: Icon(Icons.auto_awesome, color: primaryColor, size: 26),
+                  ),
+                  const SizedBox(width: 16),
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Proje Vitrini',
+                        style: TextStyle(
+                          fontFamily: 'Manrope',
+                          fontWeight: FontWeight.w800,
+                          fontSize: 22,
+                          color: primaryColor,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                      Text(
+                        'İlham veren tasarımlar',
+                        style: TextStyle(
+                          fontFamily: 'Manrope',
+                          color: secondaryColor,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
         ),
-        title: Text(
-          '',
-          style: TextStyle(
-            color: theme.primaryColor,
-            fontWeight: FontWeight.w700,
-            fontSize: 19,
-            letterSpacing: -0.5,
-          ),
-        ),
-        centerTitle: false,
-        titlePadding: const EdgeInsets.only(left: 106, bottom: 45),
       ),
       actions: [
         Consumer<NotificationProvider>(
@@ -339,33 +308,33 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
               showBadge: notificationProvider.unreadCount > 0,
               badgeContent: Text(
                 notificationProvider.unreadCount.toString(),
-                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: Colors.white, fontSize: 10),
               ),
-              position: badges.BadgePosition.topEnd(top: 4, end: 4),
-              badgeAnimation: const badges.BadgeAnimation.scale(),
+              badgeStyle: badges.BadgeStyle(
+                badgeColor: isDark ? const Color(0xFFFF5252) : const Color(0xFFEF4444),
+              ),
               child: _buildGlassActionButton(
-                icon: Icons.notifications_outlined,
+                icon: Icons.notifications_none_rounded,
                 onPressed: () {
                   Navigator.of(context).push(MaterialPageRoute(
                     builder: (context) => const NotificationScreen(),
                   ));
                 },
-                theme: theme,
                 isDark: isDark,
               ),
             );
           },
         ),
+
         _buildGlassActionButton(
-          icon: _isSearchExpanded ? Icons.close : Icons.search,
+          icon: _isSearchExpanded ? Icons.close_rounded : Icons.search_rounded,
           onPressed: _toggleSearch,
-          theme: theme,
           isDark: isDark,
         ),
+
         _buildGlassActionButton(
-          icon: Icons.tune,
+          icon: Icons.tune_rounded,
           onPressed: _showFilterBottomSheet,
-          theme: theme,
           isDark: isDark,
         ),
         const SizedBox(width: 16),
@@ -373,136 +342,88 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
     );
   }
 
-  Widget _buildGlassContainer({
-    required ThemeData theme,
-    required bool isDark,
-    required Widget child,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark
-            ? Colors.white.withOpacity(0.05)
-            : theme.primaryColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withOpacity(0.1)
-              : theme.primaryColor.withOpacity(0.2),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: theme.primaryColor.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
-
   Widget _buildGlassActionButton({
     required IconData icon,
     required VoidCallback onPressed,
-    required ThemeData theme,
     required bool isDark,
   }) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.white.withOpacity(0.05)
-                  : theme.primaryColor.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isDark
-                    ? Colors.white.withOpacity(0.1)
-                    : theme.primaryColor.withOpacity(0.15),
-                width: 1,
-              ),
-            ),
-            child: Icon(
-              icon,
-              color: theme.primaryColor,
-              size: 22,
-            ),
-          ),
+      margin: const EdgeInsets.symmetric(horizontal: 6),
+      decoration: BoxDecoration(
+        color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? Colors.white.withOpacity(0.1) : Colors.transparent,
+        ),
+        boxShadow: isDark ? null : [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: IconButton(
+        icon: Icon(icon, color: isDark ? Colors.white : const Color(0xFF0F172A), size: 22),
+        onPressed: onPressed,
+        style: IconButton.styleFrom(
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
       ),
     );
   }
 
+  // --- MODERN SEARCH BAR ---
   Widget _buildSearchBar(ThemeData theme, bool isDark) {
     return SliverToBoxAdapter(
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOutCubic,
         height: _isSearchExpanded ? 80 : 0,
-        child: SizeTransition( // <-- Daha yumuşak bir görünüm için SizeTransition
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+        child: SizeTransition(
           sizeFactor: _searchAnimation,
           axisAlignment: -1.0,
           child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 24),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.shade200,
-              ),
+              color: isDark ? const Color(0xFF262A35) : Colors.white,
+              borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
-                  blurRadius: 20,
-                  offset: const Offset(0, 4),
+                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
                 ),
               ],
             ),
             child: TextField(
               controller: _searchController,
-              onChanged: _onSearchChanged, // <-- Artık debouncer'lı fonksiyonu çağırıyor
+              onChanged: _onSearchChanged,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
               decoration: InputDecoration(
-                hintText: 'Proje, kullanıcı veya teknoloji ara...',
+                hintText: 'Proje veya tasarımcı ara...',
                 hintStyle: TextStyle(
-                  color: isDark ? Colors.grey[400] : Colors.grey[500],
-                  fontWeight: FontWeight.w400,
+                    color: isDark ? Colors.grey[500] : Colors.grey[400],
+                    fontWeight: FontWeight.w500
                 ),
                 prefixIcon: Icon(
-                  Icons.search,
-                  color: theme.primaryColor,
-                  size: 24,
+                    Icons.search_rounded,
+                    color: isDark ? Colors.grey[400] : const Color(0xFF0F172A)
                 ),
-                suffixIcon: _searchController.text.isNotEmpty // <-- _searchQuery yerine controller'ı dinle
+                suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                  icon: Icon(
-                    Icons.clear,
-                    color: Colors.grey[400],
-                    size: 20,
-                  ),
+                  icon: const Icon(Icons.clear_rounded, size: 20),
                   onPressed: () {
                     _searchController.clear();
-                    _onSearchChanged(''); // <-- Provider'ı temizle
+                    _onSearchChanged('');
                   },
                 )
                     : null,
                 border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
-                ),
-              ),
-              style: TextStyle(
-                color: isDark ? Colors.white : Colors.black87,
-                fontWeight: FontWeight.w500,
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
               ),
             ),
           ),
@@ -517,33 +438,22 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
         switch (provider.state) {
           case ShowcaseState.initial:
           case ShowcaseState.loading:
-            return SliverFillRemaining(
-              child: _buildLoadingState(),
-            );
+            return SliverFillRemaining(child: _buildLoadingState());
 
           case ShowcaseState.error:
-            return SliverFillRemaining(
-              child: _buildErrorState(provider),
-            );
+            return SliverFillRemaining(child: _buildErrorState(provider));
 
           case ShowcaseState.loaded:
           case ShowcaseState.loadingMore:
             if (provider.posts.isEmpty) {
-
-              // === DEĞİŞİKLİK BURADA ===
-              // SliverFillRemaining yerine SliverToBoxAdapter kullanarak
-              // içeriği ekranın üstüne sabitliyoruz. Bu, hem piksel
-              // taşmasını hem de FAB çakışmasını çözer.
               return SliverToBoxAdapter(
                 child: Padding(
-                  // Ekranın üstünden biraz boşluk bırakıyoruz
-                  padding: const EdgeInsets.only(top: 64.0, bottom: 200.0),
+                  padding: const EdgeInsets.only(top: 60),
                   child: provider.searchQuery.isNotEmpty
-                      ? _buildEmptySearchState(provider) // Arama boş durumu
-                      : _buildEmptyState(provider),      // Normal boş durum
+                      ? _buildEmptySearchState(provider)
+                      : _buildEmptyState(provider),
                 ),
               );
-              // =========================
             }
             return _buildPostsList(provider);
         }
@@ -551,277 +461,56 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
     );
   }
 
-  // === YENİ WIDGET (6/4) ===
-  // Arama sonucu boş geldiğinde gösterilecek widget
   Widget _buildEmptySearchState(ShowcaseProvider provider) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(32, 0, 32, 0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Sonuç Bulunamadı',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: isDark ? Colors.white : Colors.grey[800],
-              ),
-            ),
-            const SizedBox(height: 8),
-            RichText(
-              textAlign: TextAlign.center,
-              text: TextSpan(
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: Colors.grey[600],
-                  height: 1.5,
-                ),
-                children: [
-                  const TextSpan(text: 'Aradığınız terimle ('),
-                  TextSpan(
-                    text: '"${provider.searchQuery}"',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: theme.primaryColor),
-                  ),
-                  const TextSpan(text: ') eşleşen bir proje bulunamadı.'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            _buildModernButton(
-              onPressed: () {
-                _searchController.clear();
-                provider.searchPosts('');
-              },
-              icon: Icons.clear_all_rounded,
-              label: 'Aramayı Temizle',
-              isPrimary: true,
-              theme: theme,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  // =========================
-
-  Widget _buildLoadingState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: SizedBox(
-                width: 40,
-                height: 40,
-                child: CircularProgressIndicator(
-                  strokeWidth: 3,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    Theme.of(context).primaryColor,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
+          Icon(Icons.search_off_rounded, size: 60, color: Colors.grey[300]),
+          const SizedBox(height: 16),
           Text(
-            'Projeler yükleniyor...',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Colors.grey[600],
-            ),
+            '"${provider.searchQuery}" bulunamadı',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          TextButton(
+            onPressed: () {
+              _searchController.clear();
+              provider.searchPosts('');
+            },
+            child: const Text('Aramayı Temizle'),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildErrorState(ShowcaseProvider provider) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.1),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Colors.red.withOpacity(0.2),
-                  width: 2,
-                ),
-              ),
-              child: Icon(
-                Icons.cloud_off_rounded,
-                size: 64,
-                color: Colors.red[400],
-              ),
-            ),
-            const SizedBox(height: 32),
-            Text(
-              'Bağlantı Sorunu',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: isDark ? Colors.white : Colors.grey[800],
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              provider.errorMessage ?? 'İnternet bağlantınızı kontrol edip tekrar deneyin',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: Colors.grey[600],
-                height: 1.5,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 40),
-            _buildModernButton(
-              onPressed: () => provider.fetchPosts(),
-              icon: Icons.refresh_rounded,
-              label: 'Tekrar Dene',
-              isPrimary: true,
-              theme: theme,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildEmptyState(ShowcaseProvider provider) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(40),
-              decoration: BoxDecoration(
-                color: theme.primaryColor.withOpacity(0.08),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: theme.primaryColor.withOpacity(0.2),
-                  width: 2,
-                ),
-              ),
-              child: Icon(
-                Icons.lightbulb_outline_rounded,
-                size: 80,
-                color: theme.primaryColor,
-              ),
-            ),
-            const SizedBox(height: 40),
-            Text(
-              'İlk Adımı Atın!',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: isDark ? Colors.white : Colors.grey[800],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Henüz paylaşılmış bir proje yok.\nSiz ilk gönderiyi oluşturarak\ntoplulukta iz bırakın!',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: Colors.grey[600],
-                height: 1.6,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 48),
-
-            // --- DÜZELTME BURADA: Row yerine Wrap kullanıldı ---
-            Wrap(
-              alignment: WrapAlignment.center, // Ortala
-              spacing: 16.0, // Yatay boşluk
-              runSpacing: 16.0, // Dikey boşluk (alt satıra geçerse)
-              children: [
-                _buildModernButton(
-                  onPressed: _navigateToCreatePost,
-                  icon: Icons.add_rounded,
-                  label: 'İlk Gönderi', // Metni de biraz kısalttım
-                  isPrimary: true,
-                  theme: theme,
-                ),
-                _buildModernButton(
-                  onPressed: () => provider.fetchPosts(),
-                  icon: Icons.refresh_rounded,
-                  label: 'Yenile',
-                  isPrimary: false,
-                  theme: theme,
-                ),
-              ],
-            ),
-            // --------------------------------------------------
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModernButton({
-    required VoidCallback onPressed,
-    required IconData icon,
-    required String label,
-    required bool isPrimary,
-    required ThemeData theme,
-  }) {
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: isPrimary ? [
-          BoxShadow(
-            color: theme.primaryColor.withOpacity(0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.auto_awesome_mosaic_rounded, size: 80, color: Colors.grey[300]),
+          const SizedBox(height: 20),
+          const Text(
+            'Henüz hiç proje yok',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
           ),
-        ] : null,
-      ),
-      child: ElevatedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 20),
-        label: Text(
-          label,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
+          const SizedBox(height: 8),
+          const Text(
+            'İlk paylaşan sen olabilirsin!',
+            style: TextStyle(color: Colors.grey),
           ),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: isPrimary
-              ? theme.primaryColor
-              : (isDark ? const Color(0xFF1A1A1A) : Colors.white),
-          foregroundColor: isPrimary
-              ? Colors.white
-              : theme.primaryColor,
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: isPrimary ? BorderSide.none : BorderSide(
-              color: theme.primaryColor.withOpacity(0.3),
-              width: 1.5,
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: _navigateToCreatePost,
+            icon: const Icon(Icons.add),
+            label: const Text('Proje Ekle'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -835,11 +524,11 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
             if (index == provider.posts.length) {
               return _buildLoadMoreIndicator();
             }
-
             final post = provider.posts[index];
+
             return AnimatedContainer(
-              duration: Duration(milliseconds: 300 + (index * 50)),
-              curve: Curves.easeOutCubic,
+              duration: Duration(milliseconds: 300 + (index * 50).clamp(0, 500)),
+              curve: Curves.easeOut,
               margin: const EdgeInsets.only(bottom: 16),
               child: PostCard(post: post),
             );
@@ -851,155 +540,90 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
   }
 
   Widget _buildLoadMoreIndicator() {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    return const Padding(
+      padding: EdgeInsets.all(24.0),
+      child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)),
+    );
+  }
 
-    return Container(
-      padding: const EdgeInsets.all(32),
-      child: Center(
-        child: Column(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: theme.primaryColor.withOpacity(0.2),
-                  width: 2,
-                ),
-              ),
-              child: Center(
-                child: SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      theme.primaryColor,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Daha fazla proje yükleniyor...',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[600],
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
+  Widget _buildLoadingState() {
+    return const Center(child: CircularProgressIndicator(strokeWidth: 2.5));
+  }
+
+  Widget _buildErrorState(ShowcaseProvider provider) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.wifi_off_rounded, size: 64, color: Colors.grey),
+          const SizedBox(height: 16),
+          Text(provider.errorMessage ?? 'Bir hata oluştu'),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: () => provider.fetchPosts(),
+            icon: const Icon(Icons.refresh),
+            label: const Text('Tekrar Dene'),
+          ),
+        ],
       ),
     );
   }
 
+  // --- DÜZELTİLEN KISIM: FAB PADDING ---
   Widget? _buildFloatingActionButtons(ThemeData theme, bool isDark) {
-    // --- DÜZELTME: ROL KONTROLÜ ---
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    // Eğer kullanıcı Firma (company) ise veya giriş yapmamışsa butonları gösterme
+
     if (authProvider.user?.role == UserRole.client || authProvider.user == null) {
       return null;
     }
-    // -----------------------------
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        if (_showScrollToTop)
-          ScaleTransition(
-            scale: _fabAnimation,
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(isDark ? 0.4 : 0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
+
+    final fabBgColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final fabTextColor = isDark ? Colors.black : Colors.white;
+
+    // BURAYA PADDING EKLEDİM (BOTTOM 110PX)
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 110.0), // Barı kurtarmak için yukarı ittik
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (_showScrollToTop)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
               child: FloatingActionButton.small(
                 onPressed: _scrollToTop,
-                backgroundColor: isDark ? const Color(0xFF1A1A1A) : Colors.white,
-                foregroundColor: theme.primaryColor,
-                heroTag: "scroll_to_top",
-                elevation: 0,
+                backgroundColor: isDark ? const Color(0xFF262A35) : Colors.white,
+                foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
+                heroTag: "scroll_top",
+                elevation: 4,
                 child: const Icon(Icons.keyboard_arrow_up_rounded),
               ),
             ),
-          ),
-        ScaleTransition(
-          scale: _fabAnimation,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(32),
-              gradient: LinearGradient(
-                colors: [
-                  theme.primaryColor,
-                  theme.primaryColor.withOpacity(0.8),
-                ],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: theme.primaryColor.withOpacity(0.4),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
+
+          ScaleTransition(
+            scale: _fabAnimation,
             child: FloatingActionButton.extended(
               onPressed: _navigateToCreatePost,
-              backgroundColor: Colors.transparent,
-              foregroundColor: Colors.white,
-              elevation: 0,
+              backgroundColor: fabBgColor,
+              foregroundColor: fabTextColor,
+              elevation: 8,
               heroTag: "create_post",
-              icon: const Icon(Icons.add_rounded, size: 24),
+              icon: const Icon(Icons.add_rounded),
               label: const Text(
                 'Gönderi Oluştur',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
-                ),
+                style: TextStyle(fontWeight: FontWeight.w800, letterSpacing: 0.5),
               ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
   void _navigateToCreatePost() {
     Navigator.of(context).push(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-        const CreatePostScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          const begin = Offset(0.0, 1.0);
-          const end = Offset.zero;
-
-          var slideAnimation = Tween(begin: begin, end: end).animate(
-            CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-          );
-
-          var fadeAnimation = Tween(begin: 0.0, end: 1.0).animate(
-            CurvedAnimation(parent: animation, curve: Curves.easeInOut),
-          );
-
-          return SlideTransition(
-            position: slideAnimation,
-            child: FadeTransition(
-              opacity: fadeAnimation,
-              child: child,
-            ),
-          );
-        },
-        transitionDuration: const Duration(milliseconds: 500),
-      ),
+      MaterialPageRoute(builder: (context) => const CreatePostScreen()),
     );
   }
 
@@ -1008,8 +632,7 @@ class _ShowcaseFeedScreenState extends State<ShowcaseFeedScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const ShowcaseFilterSheet(), // <-- BUNU KULLAN
+      builder: (context) => const ShowcaseFilterSheet(),
     );
   }
-
 }
