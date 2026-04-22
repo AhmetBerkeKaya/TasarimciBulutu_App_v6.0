@@ -9,14 +9,22 @@ from sqlalchemy.orm import relationship
 from app.database import Base
 from .skill import Skill
 
-# === GÜNCELLENMİŞ: GENİŞ VE PROFESYONEL KATEGORİ LİSTESİ ===
+# === GÜNCELLENMİŞ: GENİŞ VE PROFESYONEL 50+ KATEGORİ LİSTESİ ===
 class ProjectCategory(str, enum.Enum):
     ARCHITECTURE = "Mimari Tasarım ve Projelendirme"
     INTERIOR_DESIGN = "İç Mimarlık ve Dekorasyon"
     LANDSCAPE = "Peyzaj Mimarlığı ve Çevre Düzenleme"
+    URBAN_PLANNING = "Kentsel Tasarım ve Şehir Planlama"
     CIVIL_ENGINEERING = "İnşaat ve Yapı Mühendisliği"
+    STRUCTURAL_ANALYSIS = "Statik Proje ve Analiz"
+    GEOTECHNICAL = "Geoteknik ve Zemin Mekaniği"
+    TRANSPORTATION = "Ulaştırma ve Altyapı Mühendisliği"
     MECHANICAL = "Makine ve Mekanik Tasarım"
+    HVAC = "Isıtma, Soğutma ve Havalandırma (HVAC)"
+    MANUFACTURING = "İmalat ve Üretim Teknolojileri"
     ELECTRICAL = "Elektrik ve Elektronik Mühendisliği"
+    LOW_VOLTAGE = "Zayıf Akım ve Otomasyon Sistemleri"
+    RENEWABLE_ENERGY = "Yenilenebilir Enerji Sistemleri"
     MEP = "MEP (Mekanik, Elektrik, Tesisat)"
     INDUSTRIAL_DESIGN = "Endüstriyel Tasarım ve Ürün Geliştirme"
     MOLD_DESIGN = "Kalıp Tasarımı ve İmalat"
@@ -25,16 +33,33 @@ class ProjectCategory(str, enum.Enum):
     MARINE = "Gemi İnşaatı ve Denizcilik"
     PIPING = "Borulama ve Tesisat Tasarımı"
     BIM = "BIM (Yapı Bilgi Modellemesi)"
+    BIM_COORDINATION = "BIM Koordinasyon ve Çakışma Analizi"
     THREE_D_VISUALIZATION = "3D Görselleştirme ve Render"
     ANIMATION = "Animasyon ve Hareketli Grafik"
+    VFX = "VFX ve Kompozisyon"
     SOFTWARE_DEV = "Yazılım Geliştirme (Web/Mobil/Masaüstü)"
     EMBEDDED_SYSTEMS = "Gömülü Sistemler ve IoT"
     AI_ML = "Yapay Zeka ve Makine Öğrenmesi"
+    DATA_SCIENCE = "Veri Bilimi ve Analitiği"
+    CYBER_SECURITY = "Siber Güvenlik ve Ağ Yönetimi"
     GAME_DEV = "Oyun Tasarımı ve Geliştirme"
     UI_UX = "Kullanıcı Arayüzü ve Deneyimi (UI/UX)"
     GRAPHIC_DESIGN = "Grafik Tasarım ve Markalama"
     SURVEYING = "Harita ve Kadastro Mühendisliği"
-    ENERGY_SYSTEMS = "Enerji Sistemleri Mühendisliği"
+    PHOTOGRAMMETRY = "Fotogrametri ve Lidar Ölçüm"
+    MINING = "Maden ve Cevher Hazırlama Mühendisliği"
+    CHEMICAL = "Kimya ve Süreç Mühendisliği"
+    ENVIRONMENTAL = "Çevre Mühendisliği ve Atık Yönetimi"
+    BIOMEDICAL = "Biyomedikal Cihaz Tasarımı"
+    ACOUSTICS = "Ses ve Akustik Mühendisliği"
+    LIGHTING = "Aydınlatma Tasarımı (Dialux/Relux)"
+    RESTORATION = "Restorasyon ve Tarihi Yapı Analizi"
+    FURNITURE = "Mobilya ve Obje Tasarımı"
+    PACKAGING = "Ambalaj Tasarımı"
+    PROJECT_MANAGEMENT = "Proje Yönetimi ve Planlama"
+    FIRE_SAFETY = "Yangın Tesisatı ve Güvenliği"
+    HYDRAULICS = "Hidrolik ve Pnömatik Sistemler"
+    STEEL_DESIGN = "Çelik Yapı Tasarımı ve Detaylandırma"
 # ============================================================
 
 class ProjectStatus(enum.Enum):

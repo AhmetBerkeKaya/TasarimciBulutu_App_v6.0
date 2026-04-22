@@ -6,7 +6,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 from typing import List
-
+from uuid import UUID
 from app import crud, models, schemas
 from app.dependencies import get_db, get_current_user
 
@@ -42,7 +42,7 @@ def create_review(
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found.")
     
-    if project.status.value != models.ProjectStatus.COMPLETED.value:
+    if project.status != models.ProjectStatus.COMPLETED.value:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Reviews can only be submitted for completed projects."
@@ -89,3 +89,12 @@ def create_review(
     # ---------------------------------------
 
     return new_review
+
+
+@router.get("/check/{project_id}")
+def check_if_reviewed(project_id: UUID, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """Mevcut kullanıcının bu projeye daha önce yorum yapıp yapmadığını kesin olarak kontrol eder."""
+    existing_review = crud.review.get_review_by_reviewer_and_project(
+        db, reviewer_id=current_user.id, project_id=project_id
+    )
+    return {"has_reviewed": existing_review is not None}

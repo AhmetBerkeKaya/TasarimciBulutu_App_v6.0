@@ -72,3 +72,11 @@ def create_review(db: Session, review: schemas.ReviewCreate, reviewer_id: uuid.U
 
     # 3. Adım: Oluşturulan review nesnesini döndür
     return db_review
+
+
+def get_reviews_for_user(db: Session, user_id: uuid.UUID, skip: int = 0, limit: int = 100):
+    """Belirli bir kullanıcının aldığı tüm değerlendirmeleri en yeniden eskiye doğru getirir."""
+    return db.query(models.Review)\
+        .filter(models.Review.reviewee_id == user_id)\
+        .order_by(models.Review.created_at.desc())\
+        .offset(skip).limit(limit).all()

@@ -25,7 +25,9 @@ class AutodeskClient:
             'grant_type': 'client_credentials',
             'client_id': self.client_id,
             'client_secret': self.client_secret,
-            'scope': 'data:read data:write data:create bucket:create code:all'
+            # İŞTE HAYAT KURTARAN DOKUNUŞ BURASI! 
+            # Autodesk'e dosya yüklemek ve çevirmek için tam yetki istiyoruz.
+            'scope': 'data:read data:write data:create bucket:create bucket:read viewables:read'
         }
         response = requests.post(url, headers=headers, data=data)
         response.raise_for_status()

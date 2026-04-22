@@ -42,14 +42,9 @@ class UserBase(BaseModel):
     @field_validator('phone_number')
     def validate_phone_number(cls, v):
         try:
-            # --- DÜZELTME BURADA: None yerine "TR" yazıyoruz ---
-            # Böylece +90 olmadan yazılan numaraları da kabul eder.
             parsed_number = phonenumbers.parse(v, "TR") 
-            
             if not phonenumbers.is_valid_number(parsed_number):
                 raise ValueError("Geçersiz telefon numarası formatı.")
-            
-            # Veritabanına hep +90... (E164) formatında kaydediyoruz
             return phonenumbers.format_number(
                 parsed_number, phonenumbers.PhoneNumberFormat.E164
             )
@@ -66,6 +61,11 @@ class UserUpdate(BaseModel):
     bio: Optional[str] = None
     phone_number: Optional[str] = None
     profile_picture_url: Optional[str] = None
+    # 🚀 YENİ EKLENENLER: Kullanıcı ayarlarını güncelleyebilsin diye eklendi
+    expo_push_token: Optional[str] = None
+    push_enabled: Optional[bool] = None
+    email_enabled: Optional[bool] = None
+    marketing_enabled: Optional[bool] = None
 
 class PasswordUpdate(BaseModel):
     current_password: str
@@ -89,7 +89,14 @@ class User(UserBase):
     portfolio_items: List[PortfolioItemSchema] = []
     work_experiences: List[WorkExperienceSchema] = []
     test_results: List[TestResultSchema] = []
-    # reviews_received: List['Review'] = [] # Döngüsel import sorunu olursa kapatılabilir
+    reviews_received: List['Review'] = [] 
+    
+    # 🚀 YENİ EKLENENLER: Frontend'e kullanıcının ayarlarını göndermek için
+    expo_push_token: Optional[str] = None
+    push_enabled: bool = True
+    email_enabled: bool = True
+    marketing_enabled: bool = False
+    
     model_config = ConfigDict(from_attributes=True)
 
 class UserInResponse(UserSummary):

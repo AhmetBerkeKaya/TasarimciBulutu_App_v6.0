@@ -73,4 +73,3 @@ class Notification(Base):
         foreign_keys=[actor_id],
         back_populates="triggered_notifications"
     )
-    actor = relationship("User", foreign_keys=[actor_id])

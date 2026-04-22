@@ -9,6 +9,8 @@ from typing import List
 from uuid import UUID
 from app.config import settings
 # YENİ EKLENEN IMPORT'LAR: S3 için şemaları ve yardımcı fonksiyonları ekliyoruz
+from app.crud import review as review_crud
+from app.schemas import review as review_schemas
 from app.schemas import s3 as s3_schemas
 from app.utils import s3 as s3_utils
 # ================================================================
@@ -185,6 +187,21 @@ def remove_skill_from_current_user(
 def read_users(request: Request, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     users = user_crud.get_users(db, skip=skip, limit=limit)
     return users
+
+
+@router.get("/{user_id}/reviews", response_model=List[review_schemas.Review])
+@limiter.limit("60/minute")
+def read_user_reviews(request: Request, user_id: UUID, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+    """
+    Belirli bir kullanıcının profiline yapılmış tüm değerlendirmeleri listeler.
+    """
+    db_user = user_crud.get_user(db, user_id=str(user_id))
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı.")
+    
+    reviews = review_crud.get_reviews_for_user(db, user_id=user_id, skip=skip, limit=limit)
+    return reviews
+
 
 @router.get("/{user_id}", response_model=UserSchema)
 @limiter.limit("120/minute")

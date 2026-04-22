@@ -63,6 +63,12 @@ class User(Base):
 
     reset_password_token: str | None = Column(String, nullable=True, index=True, unique=True)
     reset_password_token_expires_at: datetime | None = Column(DateTime(timezone=True), nullable=True)
+    # --- BİLDİRİM TERCİHLERİ VE PUSH TOKEN ---
+    expo_push_token = Column(String, nullable=True) # Telefonun bildirim kimliği
+    push_enabled = Column(Boolean, default=True, nullable=False)
+    email_enabled = Column(Boolean, default=True, nullable=False)
+    marketing_enabled = Column(Boolean, default=False, nullable=False)
+    # -----------------------------------------
 
     # --- İlişkiler (Aynen Kaldı) ---
     projects = relationship("Project", back_populates="owner")
@@ -91,3 +97,4 @@ class User(Base):
     comments = relationship("PostComment", back_populates="author", cascade="all, delete-orphan")
     comment_likes = relationship("CommentLike", back_populates="user", cascade="all, delete-orphan")
     reports_submitted = relationship("Report", back_populates="reporter")
+    

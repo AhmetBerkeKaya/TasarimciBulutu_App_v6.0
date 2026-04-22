@@ -84,3 +84,39 @@ def mark_all_as_read(
         "message": "All unread notifications have been marked as read.",
         "updated_count": updated_count,
     }
+
+# 1. ÖNCE "CLEAR-ALL" OLMALI (Yoksa UUID zannedip 422 verir!)
+@router.delete("/clear-all")
+def clear_all_notifications(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Kullanıcının tüm bildirimlerini veritabanından kalıcı olarak siler."""
+    db.query(models.Notification).filter(
+        models.Notification.user_id == current_user.id
+    ).delete(synchronize_session=False)
+    db.commit()
+    
+    return {"status": "success", "message": "Tüm bildirimler silindi."}
+
+
+# 2. SONRA "NOTIFICATION_ID" OLMALI
+@router.delete("/{notification_id}")
+def delete_notification(
+    notification_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Belirli bir bildirimi veritabanından kalıcı olarak siler."""
+    notification = db.query(models.Notification).filter(
+        models.Notification.id == notification_id,
+        models.Notification.user_id == current_user.id
+    ).first()
+
+    if not notification:
+        raise HTTPException(status_code=404, detail="Bildirim bulunamadı veya yetkiniz yok.")
+
+    db.delete(notification)
+    db.commit()
+    
+    return {"status": "success", "message": "Bildirim silindi."}

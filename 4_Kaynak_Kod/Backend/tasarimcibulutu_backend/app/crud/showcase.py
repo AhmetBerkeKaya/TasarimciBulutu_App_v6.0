@@ -137,7 +137,6 @@ def delete_showcase_post(db: Session, post_id: uuid.UUID, user_id: uuid.UUID) ->
         audit_crud.create_audit_log(
             db,
             user_id=db_post.user_id,
-            actor_id=user_id,
             action="SHOWCASE_POST_DELETED",
             details={"post_id": str(db_post.id), "title": db_post.title}
         )

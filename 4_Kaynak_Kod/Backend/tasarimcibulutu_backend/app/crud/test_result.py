@@ -1,15 +1,16 @@
-# app/crud/test_result.py
-
 import logging
 import uuid
-import json # <-- KRİTİK: JSON dönüşümü için
+import json
 from sqlalchemy.orm import Session
 from app import models, schemas, crud
 from app.models.notification import NotificationType
-from app.crud import audit as audit_crud # <-- LOGLAMA CRUD'u EKLENDİ
+from app.crud import audit as audit_crud 
 from datetime import datetime, timezone
 from decimal import Decimal
 from sqlalchemy import and_
+
+# 🚀 KRİTİK İMPORT: TestStatus doğrudan kendi dosyasından çekiliyor!
+from app.models.test_result import TestStatus 
 
 # === LOGGER ===
 logger = logging.getLogger(__name__)
@@ -17,21 +18,17 @@ logger.setLevel(logging.INFO)
 # ==============
 
 def create_test_result(db: Session, user_id: uuid.UUID, test_id: uuid.UUID) -> models.TestResult | None:
-    """
-    Kullanıcı bir teste başladığında yeni bir TestResult kaydı oluşturur.
-    """
     logger.info(f"Yeni test sonucu kaydı oluşturuluyor: KullanıcıID={user_id}, TestID={test_id}")
     try:
         db_test_result = models.TestResult(
             user_id=user_id,
             test_id=test_id,
-            status=models.TestStatus.IN_PROGRESS
+            status=TestStatus.IN_PROGRESS  # 🚀 models. TAKISI SİLİNDİ
         )
         db.add(db_test_result)
         db.commit()
         db.refresh(db_test_result)
 
-        # --- LOGLAMA: TEST BAŞLADI ---
         audit_crud.create_audit_log(
             db=db,
             user_id=user_id,
@@ -42,10 +39,7 @@ def create_test_result(db: Session, user_id: uuid.UUID, test_id: uuid.UUID) -> m
                 "test_id": str(test_id),
                 "status": "IN_PROGRESS"
             })
-            # Not: CRUD katmanında olduğumuz için request.ip'ye erişemiyoruz, 
-            # ama en azından eylemi ve zamanı kaydediyoruz.
         )
-        # -----------------------------
 
         return db_test_result
     except Exception as e:
@@ -57,9 +51,6 @@ def get_test_result(db: Session, result_id: uuid.UUID):
     return db.query(models.TestResult).filter(models.TestResult.id == result_id).first()
 
 def calculate_and_complete_test(db: Session, result_id: uuid.UUID, submission: schemas.TestSubmission):
-    """
-    Kullanıcının gönderdiği cevapları alır, puanı hesaplar, test sonucunu günceller.
-    """
     logger.info(f"Test sonucu hesaplanıyor: SonuçID={result_id}")
     
     db_test_result = get_test_result(db, result_id)
@@ -67,16 +58,13 @@ def calculate_and_complete_test(db: Session, result_id: uuid.UUID, submission: s
         logger.warning(f"Hesaplanmak istenen test sonucu bulunamadı: ID={result_id}")
         return None
 
-    # 1. Adım: Doğru cevapları al
     correct_answers = db.query(models.Choice).join(models.Question).filter(
         models.Question.test_id == db_test_result.test_id,
         models.Choice.is_correct == True
     ).all()
     
-    # UUID -> String dönüşümü (Hata önleyici)
     correct_choices_map = {str(choice.question_id): str(choice.id) for choice in correct_answers}
     
-    # 2. Adım: Puanı hesapla
     score = 0
     total_questions = len(correct_choices_map)
     
@@ -92,17 +80,14 @@ def calculate_and_complete_test(db: Session, result_id: uuid.UUID, submission: s
     logger.info(f"Test tamamlandı. Skor: {final_score} ({score}/{total_questions})")
 
     try:
-        # 3. Adım: Test sonucunu güncelle
         db_test_result.score = final_score
-        db_test_result.status = models.TestStatus.COMPLETED
+        db_test_result.status = TestStatus.COMPLETED  # 🚀 models. TAKISI SİLİNDİ
         db_test_result.completed_at = datetime.now(timezone.utc)
         
         db.add(db_test_result)
         db.commit()
         db.refresh(db_test_result)
 
-        # --- LOGLAMA: TEST TAMAMLANDI ---
-        # Puanı ve sonucu detaylara ekliyoruz.
         audit_crud.create_audit_log(
             db=db,
             user_id=db_test_result.user_id,
@@ -117,7 +102,6 @@ def calculate_and_complete_test(db: Session, result_id: uuid.UUID, submission: s
                 "result": "PASSED" if final_score >= 70 else "FAILED"
             })
         )
-        # --------------------------------
         
         if final_score >= 70:
              logger.info(f"Kullanıcı testi geçti! Rozet verilmesi için tetikleyici çalışabilir.")
@@ -127,7 +111,6 @@ def calculate_and_complete_test(db: Session, result_id: uuid.UUID, submission: s
         db.rollback()
         return None
 
-    # 5. Adım: Bildirim gönder
     try:
         skill_test = db.query(models.SkillTest).filter(models.SkillTest.id == db_test_result.test_id).first()
         if skill_test:
@@ -151,6 +134,6 @@ def get_completed_test_by_user_and_test(db: Session, user_id: uuid.UUID, test_id
         and_(
             models.TestResult.user_id == user_id,
             models.TestResult.test_id == test_id,
-            models.TestResult.status == models.TestStatus.COMPLETED
+            models.TestResult.status == TestStatus.COMPLETED  # 🚀 models. TAKISI SİLİNDİ (Hatayı çıkaran yer)
         )
     ).first()
