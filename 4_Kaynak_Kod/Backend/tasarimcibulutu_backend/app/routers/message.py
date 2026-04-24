@@ -1,53 +1,106 @@
 # app/routers/message.py
-from fastapi import APIRouter, Depends, HTTPException, status, Response, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, Response, BackgroundTasks, WebSocket, WebSocketDisconnect
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
+import asyncio
+
 from app import schemas, models
 from app.crud import message as message_crud, user as user_crud
 from app.dependencies import get_db, get_current_user
 from app.models.user import User as UserModel
 
-# 🚀 YENİ İMPORT: Bildirim Motorumuz
 from app.utils.push_sender import send_expo_push_notification
+from app.utils.websocket_manager import manager
+from jose import jwt, JWTError
+from app.config import settings
 
 router = APIRouter(
     prefix="/messages",
     tags=["messages"]
 )
 
+@router.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket, token: str, db: Session = Depends(get_db)):
+    # Güvenlik ve bağlantı çökmesini önlemek için önce kabul et, sonra kontrol et
+    await websocket.accept()
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+    except JWTError:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
+    user = user_crud.get_user_by_email(db, email=email)
+    if not user:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
+    # Kuleye Kaydet
+    manager.active_connections[str(user.id)] = websocket
+    print(f"🟢 WS Bağlandı: {user.name} (Aktif Cihazlar: {len(manager.active_connections)})")
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(str(user.id))
+
+async def handle_hybrid_delivery(
+    receiver_id: str, 
+    message_data: dict, 
+    push_token: str, 
+    push_enabled: bool, 
+    push_title: str, 
+    push_body: str, 
+    push_data: dict
+):
+    is_online = await manager.send_personal_message(message_data, receiver_id)
+    
+    if not is_online:
+        if push_enabled and push_token:
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, send_expo_push_notification, push_token, push_title, push_body, push_data)
+        else:
+            print(f"⚠️ Alıcı offline ve push kapalı/token yok. Mesaj sadece DB'ye yazıldı.")
+
 @router.post("/", response_model=schemas.Message, status_code=status.HTTP_201_CREATED)
 def send_new_message(
     message: schemas.MessageCreate,
-    background_tasks: BackgroundTasks, # 🚀 YENİ: Arka Plan Görev Yöneticisi
+    background_tasks: BackgroundTasks, 
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
 ):
-    """
-    Sends a new message from the current user to a receiver.
-    """
     if message.receiver_id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot send message to yourself")
 
     new_message = message_crud.create_message(db=db, message=message, sender_id=current_user.id)
-
-    # 🚀 ANLIK BİLDİRİM (PUSH) MOTORU TETİKLENİYOR
     receiver = user_crud.get_user(db, user_id=str(message.receiver_id))
     
-    if receiver and receiver.push_enabled and receiver.expo_push_token:
+    if receiver:
+        # 🚀 FORMAT DÜZELTMESİ (Saçmalık 2 Çözüldü): Veritabanı objesini Pydantic şemasına çeviriyoruz!
+        message_schema = schemas.Message.model_validate(new_message)
+        message_dict = jsonable_encoder(message_schema)
+        
         preview_text = message.content[:50] + ("..." if len(message.content) > 50 else "")
+        push_title = f"{current_user.name} sana mesaj gönderdi"
+        push_data = {"type": "message", "related_entity_id": str(current_user.id)} 
         
         background_tasks.add_task(
-            send_expo_push_notification,
-            token=receiver.expo_push_token,
-            title=f"{current_user.name} sana mesaj gönderdi",
-            body=preview_text,
-            data={"type": "message", "related_entity_id": str(current_user.id)} 
+            handle_hybrid_delivery,
+            receiver_id=str(receiver.id),
+            message_data=message_dict,
+            push_token=receiver.expo_push_token,
+            push_enabled=receiver.push_enabled,
+            push_title=push_title,
+            push_body=preview_text,
+            push_data=push_data
         )
-    else:
-        print(f"⚠️ DİKKAT: Bildirim gönderilemedi! Sebebi -> Alıcı Bulundu mu?: {bool(receiver)} | Push Açık mı?: {receiver.push_enabled if receiver else False} | Token Var mı?: {receiver.expo_push_token if receiver else 'YOK (NULL)'}")
 
-    # 🚀 DÜZELTME BURADA: Bu satır İÇERİDE değil, EN DIŞTADIR!
     return new_message
 
 @router.get("/{other_user_id}", response_model=List[schemas.Message])

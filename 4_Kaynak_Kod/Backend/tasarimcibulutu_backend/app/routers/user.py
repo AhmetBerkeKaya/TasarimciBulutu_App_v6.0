@@ -3,12 +3,17 @@
 # =================== GÜNCELLENMİŞ IMPORT'LAR ===================
 import shutil
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status, Response, UploadFile, File, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Response, UploadFile, File, Request, BackgroundTasks # 🚀 BackgroundTasks eklendi
 from sqlalchemy.orm import Session
 from typing import List
 from uuid import UUID
+from datetime import timedelta # 🚀 Token süresi için eklendi
+
 from app.config import settings
-# YENİ EKLENEN IMPORT'LAR: S3 için şemaları ve yardımcı fonksiyonları ekliyoruz
+from app import security # 🚀 JWT Token üretmek için eklendi
+from app.utils import email as email_utils # 🚀 Mail fırlatmak için eklendi
+
+# S3 için şemaları ve yardımcı fonksiyonları ekliyoruz
 from app.crud import review as review_crud
 from app.schemas import review as review_schemas
 from app.schemas import s3 as s3_schemas
@@ -77,9 +82,15 @@ def create_picture_upload_url(
 # ===                         YENİ ENDPOINT BİTTİ                           ===
 # ===============================================================================
 
+# 🚀 GÜNCELLENEN KAYIT OLMA (REGISTER) ENDPOINT'İ
 @router.post("/", response_model=UserSchema, status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/hour")
-def create_user(request: Request, user: UserCreate, db: Session = Depends(get_db)):
+def create_user(
+    request: Request, 
+    user: UserCreate, 
+    background_tasks: BackgroundTasks, # 🚀 EKLENDİ
+    db: Session = Depends(get_db)
+):
     db_user = user_crud.get_user_by_email(db, email=user.email)
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -88,12 +99,40 @@ def create_user(request: Request, user: UserCreate, db: Session = Depends(get_db
     if db_user_by_phone:
         raise HTTPException(status_code=400, detail="Bu telefon numarası zaten kayıtlı.")
     
-    # Not: Kullanıcı oluşturma (Sign Up) loglamasını genelde Auth router'da
-    # veya burada yapabiliriz. Auth router'da Login logu var. 
-    # Burada create_user sonrası otomatik login olmadığı için loglamayı şimdilik pas geçiyoruz 
-    # veya isteğe bağlı ekleyebiliriz.
+    # Kullanıcıyı Veritabanına Kaydet
+    created_user = user_crud.create_user(db=db, user=user)
+
+    if created_user:
+        # 1. Doğrulama Token'ı Üret (24 Saat Geçerli)
+        verification_token = security.create_access_token(
+            data={"sub": created_user.email, "type": "email_verification"},
+            expires_delta=timedelta(hours=24)
+        )
+
+        # 2. Arka Planda Mail Gönder
+        # (NOT: app/utils/email.py içinde send_verification_email fonksiyonu olduğundan emin ol)
+        try:
+            background_tasks.add_task(
+                email_utils.send_verification_email, 
+                recipient_email=created_user.email,
+                token=verification_token
+            )
+        except AttributeError:
+            print("⚠️ Uyarı: email_utils.send_verification_email fonksiyonu henüz yazılmamış! Mail atılamadı.")
+
+        # 3. Admin İçin Logla
+        audit_crud.create_audit_log(
+            db=db,
+            user_id=created_user.id,
+            action="USER_REGISTERED",
+            target_entity="users",
+            target_id=str(created_user.id),
+            details=f"Yeni kullanıcı kayıt oldu. Rol: {created_user.role.value}",
+            ip_address=request.client.host,
+            user_agent=request.headers.get("user-agent")
+        )
     
-    return user_crud.create_user(db=db, user=user)
+    return created_user
 
 @router.get("/me", response_model=UserSchema)
 @limiter.limit("120/minute")
@@ -153,7 +192,6 @@ def change_current_user_password(
     
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-
 @router.post("/me/skills/{skill_id}", response_model=UserSchema)
 @limiter.limit("60/minute")
 def add_skill_to_current_user(
@@ -188,7 +226,6 @@ def read_users(request: Request, skip: int = 0, limit: int = 100, db: Session = 
     users = user_crud.get_users(db, skip=skip, limit=limit)
     return users
 
-
 @router.get("/{user_id}/reviews", response_model=List[review_schemas.Review])
 @limiter.limit("60/minute")
 def read_user_reviews(request: Request, user_id: UUID, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
@@ -201,7 +238,6 @@ def read_user_reviews(request: Request, user_id: UUID, skip: int = 0, limit: int
     
     reviews = review_crud.get_reviews_for_user(db, user_id=user_id, skip=skip, limit=limit)
     return reviews
-
 
 @router.get("/{user_id}", response_model=UserSchema)
 @limiter.limit("120/minute")

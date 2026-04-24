@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from datetime import timedelta
 from jose import JWTError, jwt
 import requests 
+from pydantic import BaseModel # 🚀 EKLENDİ (VerifyEmailRequest için)
 
 from app import database, security
 from app.crud import user as user_crud
@@ -16,10 +17,9 @@ from app.config import settings
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from app.utils import email as email_utils
-from app.models.user import User as UserModel # Model importu
+from app.models.user import User as UserModel 
 from app.dependencies import get_db, get_current_user, get_current_admin
 
-# Prefix burada BOŞ olmalı. main.py'da "/auth" ekliyoruz.
 router = APIRouter(
     tags=["authentication"]
 )
@@ -39,14 +39,12 @@ def get_db():
 def login_for_access_token(request: Request, db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
     user = user_crud.authenticate_user(db, email=form_data.username, password=form_data.password)
     if not user:
-        # Başarısız giriş loglaması (isteğe bağlı açılabilir)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # LOGLAMA
     audit_crud.create_audit_log(
         db=db,
         user_id=user.id,
@@ -71,7 +69,6 @@ def login_for_access_token(request: Request, db: Session = Depends(get_db), form
 @router.post("/admin/token", response_model=Token)
 @limiter.limit("5/15minute")
 def login_for_admin_access_token(request: Request, db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
-    # 1. Standart doğrulama
     user = user_crud.authenticate_user(db, email=form_data.username, password=form_data.password)
     if not user:
         raise HTTPException(
@@ -80,12 +77,9 @@ def login_for_admin_access_token(request: Request, db: Session = Depends(get_db)
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # 2. YETKİ KONTROLÜ (KRİTİK KISIM)
-    # Kullanıcı Süper Admin mi VEYA Admin Paneli yetkisi var mı?
     is_authorized = user.is_superuser or user.roles.get("admin_panel") in ["super_admin", "admin", "editor"]
     
     if not is_authorized:
-        # Yetkisiz giriş denemesi logu
         audit_crud.create_audit_log(
             db=db,
             user_id=user.id,
@@ -98,7 +92,6 @@ def login_for_admin_access_token(request: Request, db: Session = Depends(get_db)
             detail="Bu panele giriş yetkiniz yok."
         )
 
-    # 3. Başarılı Admin Girişi Logu
     audit_crud.create_audit_log(
         db=db,
         user_id=user.id,
@@ -110,7 +103,6 @@ def login_for_admin_access_token(request: Request, db: Session = Depends(get_db)
         user_agent=request.headers.get("user-agent")
     )
 
-    # 4. Token Üretimi
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = security.create_access_token(
         data={"sub": user.email}, expires_delta=access_token_expires
@@ -203,3 +195,57 @@ def get_viewer_token(request: Request):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Could not connect to Autodesk services to get a viewer token."
         )
+
+# ==========================================================
+# 🚀 YENİ EKLENDİ: E-Posta Doğrulama Uç Noktası
+# ==========================================================
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+@router.post("/verify-email", status_code=status.HTTP_200_OK)
+@limiter.limit("5/hour")
+def verify_email(
+    request: Request,
+    payload: VerifyEmailRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Kullanıcının mailine giden JWT token'ını çözer ve hesabını doğrular (is_verified = True).
+    """
+    try:
+        # Token'ı çöz ve içinden emaili al
+        decoded = jwt.decode(payload.token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email = decoded.get("sub")
+        token_type = decoded.get("type")
+        
+        # Token tipi güvenlik kontrolü
+        if token_type != "email_verification" or not email:
+            raise HTTPException(status_code=400, detail="Geçersiz veya süresi dolmuş doğrulama kodu.")
+            
+        user = user_crud.get_user_by_email(db, email=email)
+        if not user:
+            raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı.")
+            
+        if user.is_verified:
+            return {"message": "E-posta adresiniz zaten doğrulanmış."}
+            
+        # Kullanıcıyı onayla
+        user.is_verified = True
+        db.commit()
+        
+        # Loglama (Admin panelinde görmek için)
+        audit_crud.create_audit_log(
+            db=db,
+            user_id=user.id,
+            action="EMAIL_VERIFIED",
+            target_entity="users",
+            target_id=str(user.id),
+            details="Kullanıcı e-posta adresini doğruladı.",
+            ip_address=request.client.host,
+            user_agent=request.headers.get("user-agent")
+        )
+        
+        return {"message": "Tebrikler! E-posta adresiniz başarıyla doğrulandı."}
+        
+    except JWTError:
+        raise HTTPException(status_code=400, detail="Geçersiz veya süresi dolmuş doğrulama kodu.")

@@ -1,15 +1,17 @@
 # app/routers/report.py
 
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request # 🚀 Request EKLENDİ (Loglama ip_address için)
 from sqlalchemy.orm import Session
 from app import database
 from app.models.report import Report, ReportStatus
 from app.models.user import User, UserRole
 from app.models.showcase import ShowcasePost
 from app.schemas.report import ReportCreate, ReportResponse
-from app.routers.auth import get_db, get_current_user # Mobildeki auth
-from app.routers.admin import get_current_admin # Admindeki auth
+from app.routers.auth import get_db, get_current_user 
+from app.routers.admin import get_current_admin 
+
+from app.crud import audit as audit_crud # 🚀 EKLENDİ (Şikayeti Loglamak için)
 
 router = APIRouter(tags=["reports"])
 
@@ -18,6 +20,7 @@ router = APIRouter(tags=["reports"])
 def report_showcase_post(
     post_id: str,
     report_data: ReportCreate,
+    request: Request, # 🚀 EKLENDİ (Loglama ip_address için)
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -34,18 +37,30 @@ def report_showcase_post(
     )
     db.add(new_report)
     db.commit()
+
+    # 🚀 YENİ EKLENDİ: Şikayet Admin Paneline (Loglara) Anında Düşsün!
+    audit_crud.create_audit_log(
+        db=db,
+        user_id=current_user.id,
+        action="CONTENT_REPORTED", # Bu tag'e sahip olanlar şikayettir!
+        target_entity="showcase_posts",
+        target_id=str(post.id),
+        details=f"Şikayet Sebebi: {report_data.reason} | Açıklama: {report_data.description}",
+        ip_address=request.client.host,
+        user_agent=request.headers.get("user-agent")
+    )
+
     return {"message": "Şikayetiniz alındı, teşekkürler."}
 
 # --- 2. ADMIN: ŞİKAYETLERİ LİSTELE ---
 @router.get("/admin/reports", response_model=List[ReportResponse])
 def get_all_reports(
-    status: str = "pending", # Varsayılan olarak sadece bekleyenleri getir
+    status: str = "pending", 
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_admin)
 ):
     reports = db.query(Report).filter(Report.status == status).order_by(Report.created_at.desc()).all()
     
-    # Manuel Response Mapping (Daha performanslı)
     return [
         ReportResponse(
             id=r.id,
