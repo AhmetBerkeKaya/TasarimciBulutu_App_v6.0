@@ -1,6 +1,6 @@
 # app/routers/project.py
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Body, BackgroundTasks # 🚀 EKLENDİ
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
@@ -10,7 +10,9 @@ from uuid import UUID
 from app import crud, schemas
 from app.dependencies import get_db, get_current_user
 from app.models.user import User as UserModel, UserRole
-from app.crud import audit as audit_crud # <--- YENİ IMPORT
+from app.models.skill import Skill as SkillModel # 🚀 BİLDİRİM SORGUSU İÇİN EKLENDİ
+from app.crud import audit as audit_crud 
+from app.utils.push_sender import send_expo_push_notification # 🚀 BİLDİRİM MOTORU
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -23,13 +25,18 @@ router = APIRouter(
 
 @router.post("/", response_model=schemas.Project, status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/hour")
-def create_project(request: Request, project: schemas.ProjectCreate, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
+def create_project(
+    request: Request, 
+    project: schemas.ProjectCreate, 
+    background_tasks: BackgroundTasks, # 🚀 EKLENDİ
+    db: Session = Depends(get_db), 
+    current_user: UserModel = Depends(get_current_user)
+):
     if current_user.role != UserRole.client:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only clients can create projects.")
     
     created_project = crud.project.create_project(db=db, project=project, owner_id=current_user.id)
     
-    # --- LOGLAMA ---
     if created_project:
         audit_crud.create_audit_log(
             db=db,
@@ -41,7 +48,27 @@ def create_project(request: Request, project: schemas.ProjectCreate, db: Session
             ip_address=request.client.host,
             user_agent=request.headers.get("user-agent")
         )
-    # ---------------
+
+        # 🚀 AKILLI EŞLEŞTİRME VE BİLDİRİM MOTORU
+        if hasattr(created_project, 'required_skills') and created_project.required_skills:
+            skill_ids = [skill.id for skill in created_project.required_skills]
+            if skill_ids:
+                # Sadece ilgili yeteneği olan freelancerları bul (Push izni açık olanlar)
+                matched_users = db.query(UserModel).filter(
+                    UserModel.role == UserRole.freelancer,
+                    UserModel.push_enabled == True,
+                    UserModel.expo_push_token.isnot(None),
+                    UserModel.skills.any(SkillModel.id.in_(skill_ids))
+                ).all()
+
+                for user in matched_users:
+                    background_tasks.add_task(
+                        send_expo_push_notification,
+                        token=user.expo_push_token,
+                        title="Yeteneklerine Uygun Yeni İlan! 🎯",
+                        body=f"{current_user.name} firması uzmanlık alanınla ilgili yeni bir proje yayınladı: {created_project.title}",
+                        data={"type": "project", "related_entity_id": str(created_project.id)}
+                    )
     
     return created_project
 
@@ -79,7 +106,6 @@ def read_projects(
     )
     return projects
 
-
 @router.get("/{project_id}", response_model=schemas.Project)
 @limiter.limit("120/minute")
 def read_project(request: Request, project_id: UUID, db: Session = Depends(get_db)):
@@ -98,8 +124,6 @@ def get_project_applications(request: Request, project_id: UUID, db: Session = D
         raise HTTPException(status_code=403, detail="You can only view applications for your own projects")
     return crud.application.get_applications_by_project(db, project_id=project_id)
 
-
-# --- Proje Güncelleme Endpoint'i ---
 @router.put("/{project_id}", response_model=schemas.Project, summary="Firmanın projesini günceller")
 @limiter.limit("20/hour")
 def update_project(
@@ -109,7 +133,6 @@ def update_project(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
 ):
-    # 1. Yetki Kontrolü
     if current_user.role != UserRole.client:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only clients can update projects.")
     
@@ -119,13 +142,11 @@ def update_project(
     if db_project.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only update your own projects.")
     
-    # 2. Güncelleme
     updated_project = crud.project.update_project(db=db, project_id=project_id, project_update=project_update)
     
     if not updated_project:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update project.")
 
-    # --- LOGLAMA ---
     audit_crud.create_audit_log(
         db=db,
         user_id=current_user.id,
@@ -136,11 +157,9 @@ def update_project(
         ip_address=request.client.host,
         user_agent=request.headers.get("user-agent")
     )
-    # ---------------
         
     return updated_project
 
-# --- Proje Silme Endpoint'i ---
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Firmanın projesini siler")
 @limiter.limit("5/hour")
 def delete_project(
@@ -149,7 +168,6 @@ def delete_project(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
 ):
-    # 1. Yetki Kontrolü
     if current_user.role != UserRole.client:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only clients can delete projects.")
 
@@ -160,12 +178,9 @@ def delete_project(
     if db_project.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only delete your own projects.")
     
-    project_title = db_project.title # Silmeden önce adını alalım log için
-
-    # 2. Silme
+    project_title = db_project.title 
     crud.project.delete_project(db=db, project_id=project_id)
     
-    # --- LOGLAMA ---
     audit_crud.create_audit_log(
         db=db,
         user_id=current_user.id,
@@ -176,7 +191,6 @@ def delete_project(
         ip_address=request.client.host,
         user_agent=request.headers.get("user-agent")
     )
-    # ---------------
 
     return {}
 
@@ -190,7 +204,6 @@ def deliver_project_as_freelancer(request: Request, project_id: UUID, db: Sessio
     if not updated_project:
         raise HTTPException(status_code=404, detail="Project not found, not in progress, or you are not the assigned freelancer.")
     
-    # --- LOGLAMA ---
     audit_crud.create_audit_log(
         db=db,
         user_id=current_user.id,
@@ -201,7 +214,6 @@ def deliver_project_as_freelancer(request: Request, project_id: UUID, db: Sessio
         ip_address=request.client.host,
         user_agent=request.headers.get("user-agent")
     )
-    # ---------------
 
     return updated_project
 
@@ -215,7 +227,6 @@ def accept_delivery_and_complete_project(request: Request, project_id: UUID, db:
     if not updated_project:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Project is not in progress or you are not the assigned freelancer.")
     
-    # --- LOGLAMA ---
     audit_crud.create_audit_log(
         db=db,
         user_id=current_user.id,
@@ -226,7 +237,6 @@ def accept_delivery_and_complete_project(request: Request, project_id: UUID, db:
         ip_address=request.client.host,
         user_agent=request.headers.get("user-agent")
     )
-    # ---------------
 
     return updated_project
 
@@ -252,7 +262,6 @@ def request_revision_as_client(
     if not updated_project:
         raise HTTPException(status_code=404, detail="Project not found, not pending review, or you are not the owner.")
     
-    # --- LOGLAMA ---
     audit_crud.create_audit_log(
         db=db,
         user_id=current_user.id,
@@ -263,6 +272,5 @@ def request_revision_as_client(
         ip_address=request.client.host,
         user_agent=request.headers.get("user-agent")
     )
-    # ---------------
 
     return updated_project

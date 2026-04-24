@@ -1,5 +1,5 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks # 🚀 EKLENDİ
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -8,6 +8,9 @@ from app.crud import skill_test as crud_skill_test
 from app.crud import test_result as crud_test_result 
 from app.dependencies import get_db, get_current_user
 from app.models.test_result import TestStatus 
+from app.models.user import UserRole # 🚀 EKLENDİ
+from app.models.skill import Skill as SkillModel # 🚀 EKLENDİ
+from app.utils.push_sender import send_expo_push_notification # 🚀 EKLENDİ
 
 router = APIRouter(
     prefix="/skill-tests",
@@ -16,8 +19,33 @@ router = APIRouter(
 )
 
 @router.post("/", response_model=schemas.SkillTest, status_code=status.HTTP_201_CREATED)
-def create_skill_test(test: schemas.SkillTestCreate, db: Session = Depends(get_db)):
-    return crud_skill_test.create_skill_test(db=db, test=test)
+def create_skill_test(
+    test: schemas.SkillTestCreate, 
+    background_tasks: BackgroundTasks, # 🚀 EKLENDİ
+    db: Session = Depends(get_db)
+):
+    created_test = crud_skill_test.create_skill_test(db=db, test=test)
+    
+    # 🚀 AKILLI EŞLEŞTİRME VE BİLDİRİM MOTORU
+    if created_test and created_test.skill_id:
+        # Sadece bu yeteneğe sahip olan freelancerlara bildir
+        matched_users = db.query(models.User).filter(
+            models.User.role == UserRole.freelancer,
+            models.User.push_enabled == True,
+            models.User.expo_push_token.isnot(None),
+            models.User.skills.any(SkillModel.id == created_test.skill_id)
+        ).all()
+        
+        for user in matched_users:
+            background_tasks.add_task(
+                send_expo_push_notification,
+                token=user.expo_push_token,
+                title="Yeni Yetkinlik Testi! 📝",
+                body=f"Uzmanı olduğun alanda yeni bir test eklendi: {created_test.title}. Hemen çöz ve rozetini al!",
+                data={"type": "skill_test", "related_entity_id": str(created_test.id)}
+            )
+            
+    return created_test
 
 @router.get("/", response_model=List[schemas.SkillTestSimple])
 def read_skill_tests(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
@@ -48,8 +76,6 @@ def start_skill_test(
                 detail="Bu testi daha önce tamamladınız. Tekrar çözemezsiniz."
             )
         else:
-            # 🚀 HARİKA DOKUNUŞ: Yarım bırakılan testte hata fırlatma, testi geri döndür!
-            # Böylece frontend süreyi hesaplayıp kaldığı yerden devam ettirebilir.
             return existing_result
 
     db_test = crud_skill_test.get_skill_test(db, test_id=test_id)

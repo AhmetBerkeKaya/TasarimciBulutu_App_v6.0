@@ -24,7 +24,8 @@ from app.models.portfolio import PortfolioItem
 from app.models.skill import Skill
 from app.models.work_experience import WorkExperience
 from app.models.application import Application, ApplicationStatus
-
+from fastapi import BackgroundTasks
+from app.utils.push_sender import send_expo_push_notification
 # Şema için Pydantic kullanacağız, aşağıda lokal tanımlayacağım pratik olsun diye
 from pydantic import BaseModel
 
@@ -547,4 +548,86 @@ def get_project_details(
         "required_skills": [s.name for s in project.required_skills],
         # Başvuru sayısı
         "application_count": len(project.applications)
+    }
+
+
+
+# ==========================================
+# PAZARLAMA VE DUYURU MOTORU (MEGAPHONE)
+# ==========================================
+
+# Duyuru için gerekli veriyi alacağımız Pydantic şeması
+class AnnouncementRequest(BaseModel):
+    title: str
+    message: str
+    link_url: Optional[str] = None # İsteğe bağlı: Tıklayınca bir web sayfasına veya uygulama içi ekrana gitmesi için
+
+# Arka planda çalışacak tetikçi fonksiyon (Admin'i bekletmemek için)
+def process_bulk_announcements(db: Session, title: str, message: str, link_url: Optional[str] = None):
+    # SÜZGEÇ: Sadece push izni VE pazarlama izni olanları, üstelik token'ı olanları bul
+    target_users = db.query(User).filter(
+        User.push_enabled == True,
+        User.marketing_enabled == True,
+        User.expo_push_token.isnot(None)
+    ).all()
+    
+    success_count = 0
+    for user in target_users:
+        # Bavul (Data): Eğer bir link varsa bildirimin içine gömüyoruz
+        payload_data = {"type": "announcement"}
+        if link_url:
+            payload_data["url"] = link_url
+
+        # Ateşle!
+        sent = send_expo_push_notification(
+            token=user.expo_push_token,
+            title=title,
+            body=message,
+            data=payload_data
+        )
+        if sent:
+            success_count += 1
+            
+    print(f"📣 [DUYURU RAPORU]: '{title}' başlıklı duyuru {len(target_users)} hedefin {success_count} tanesine başarıyla iletildi.")
+
+@router.post("/announcements/broadcast")
+def send_bulk_announcement(
+    announcement: AnnouncementRequest,
+    background_tasks: BackgroundTasks, # 🚀 Asıl sihir burada
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Tüm uygun kullanıcılara (Pazarlama izni verenlere) toplu Push Bildirimi atar.
+    İşlem arka planda yapılır, admin anında 200 OK yanıtı alır.
+    """
+    # 1. Bildirim atma görevini arka plana devret
+    background_tasks.add_task(
+        process_bulk_announcements, 
+        db=db, 
+        title=announcement.title, 
+        message=announcement.message,
+        link_url=announcement.link_url
+    )
+    
+    # 2. Loglama: Hangi admin bu duyuruyu çıktı?
+    # (Eğer audit_crud admin.py'de import ediliyorsa kullan, yoksa bu kısmı atlayabilirsin)
+    try:
+        from app.crud import audit as audit_crud
+        audit_crud.create_audit_log(
+            db=db,
+            user_id=current_admin.id,
+            action="BULK_ANNOUNCEMENT_SENT",
+            target_entity="system",
+            target_id="all",
+            details=f"Toplu duyuru başlatıldı: {announcement.title}",
+            ip_address="admin-panel",
+            user_agent="admin-panel"
+        )
+    except ImportError:
+        pass
+
+    return {
+        "status": "success",
+        "message": f"Duyuru arka planda işleme alındı. Hedef kitleye gönderiliyor..."
     }

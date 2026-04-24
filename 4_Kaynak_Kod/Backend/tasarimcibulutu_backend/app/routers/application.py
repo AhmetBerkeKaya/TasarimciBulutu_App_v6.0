@@ -12,6 +12,9 @@ from app.models.user import User as UserModel
 from app.models.user import UserRole
 from app import crud, schemas, database
 from uuid import UUID
+from fastapi import BackgroundTasks
+from app.crud import user as user_crud
+from app.utils.push_sender import send_expo_push_notification
 
 # --- LOGLAMA İÇİN YENİ IMPORT ---
 from app.crud import audit as audit_crud
@@ -123,6 +126,7 @@ def update_application_status(
     request: Request,
     application_id: UUID,
     status_update: schemas.ApplicationStatusUpdate,
+    background_tasks: BackgroundTasks, # 🚀 YENİ EKLENDİ
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user)
 ):
@@ -151,5 +155,25 @@ def update_application_status(
         user_agent=request.headers.get("user-agent")
     )
     # ---------------------------------------
+
+    # 🚀 ANLIK BİLDİRİM (PUSH) MOTORU TETİKLENİYOR
+    freelancer = user_crud.get_user(db, user_id=str(updated_application.freelancer_id))
+    
+    if freelancer and freelancer.push_enabled and freelancer.expo_push_token:
+        # Duruma göre mantıklı bir metin oluşturalım
+        status_tr = {
+            "accepted": "Onaylandı 🎉",
+            "rejected": "Reddedildi",
+            "in_progress": "Sürece Alındı",
+            "completed": "Tamamlandı"
+        }.get(status_update.status, status_update.status)
+
+        background_tasks.add_task(
+            send_expo_push_notification,
+            token=freelancer.expo_push_token,
+            title="Proje Başvurun Güncellendi!",
+            body=f"Bir projeye yaptığın başvuru şu an '{status_tr}' durumunda.",
+            data={"type": "application", "related_entity_id": str(updated_application.project_id)} 
+        )
 
     return updated_application

@@ -2,7 +2,7 @@
 
 import uuid
 import os
-import json # <-- BU IMPORT KRİTİK
+import json 
 from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -17,7 +17,10 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from app.models.showcase import ProcessingStatus
 from app.models.user import UserRole
-from app.crud import audit as audit_crud # <-- Loglama CRUD'u
+from app.crud import audit as audit_crud 
+
+# 🚀 YENİ İMPORT: Bildirim Motorumuz
+from app.utils.push_sender import send_expo_push_notification
 
 limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(
@@ -27,7 +30,6 @@ router = APIRouter(
 
 ALLOWED_FILE_EXTENSIONS = {".zip"}
 
-# --- YARDIMCI FONKSİYON: ROL KONTROLÜ ---
 def check_freelancer_permission(user: models.User):
     if user.role != UserRole.freelancer:
         raise HTTPException(
@@ -58,13 +60,11 @@ def initialize_post_upload(
 
     db_post = crud.showcase.create_showcase_post(db, post=post_init_data, user_id=current_user.id, status=ProcessingStatus.PENDING)
 
-    # Veritabanı hatası kontrolü
     if not db_post:
          raise HTTPException(status_code=500, detail="Database error: Post could not be created.")
 
     raw_file_key = f"uploads-raw/{db_post.id}{file_extension}"
 
-    # Storage URL oluşturma
     if file_extension == ".zip":
         try:
             project_id = settings.SUPABASE_URL.split("https://")[1].split(".")[0]
@@ -86,12 +86,10 @@ def initialize_post_upload(
     if not upload_data:
         raise HTTPException(status_code=500, detail="Could not generate upload URL")
         
-    # --- LOGLAMA (JSON DÜZELTMESİ) ---
-    # details kısmını json.dumps() ile string'e çeviriyoruz.
     audit_crud.create_audit_log(
         db=db,
         user_id=current_user.id,
-        action="SHOWCASE_POST_INIT", # <-- İsim güncellendi
+        action="SHOWCASE_POST_INIT",
         target_entity="showcase_posts",
         target_id=str(db_post.id),
         details=json.dumps({
@@ -102,7 +100,6 @@ def initialize_post_upload(
         ip_address=request.client.host,
         user_agent=request.headers.get("user-agent")
     )
-    # ---------------------------------
 
     return schemas.showcase.ShowcasePostInitResponse(
         post_id=db_post.id,
@@ -122,12 +119,8 @@ def create_post(
     current_user: models.User = Depends(get_current_user)
 ):
     check_freelancer_permission(current_user)
-
-    print(f"DEBUG: create_post çağrıldı. Gelen file_url: {post.file_url}")
-
     db_post = crud.showcase.create_showcase_post(db=db, post=post, user_id=current_user.id)
     
-    # --- LOGLAMA (JSON DÜZELTMESİ) ---
     if db_post:
         audit_crud.create_audit_log(
             db=db,
@@ -142,18 +135,13 @@ def create_post(
             ip_address=request.client.host,
             user_agent=request.headers.get("user-agent")
         )
-    # ---------------------------------
 
     if post.file_url and post.file_url.endswith('.zip'):
-        print(f"🚀 Background Task Tetikleniyor: Post ID {db_post.id}")
-        
         background_tasks.add_task(
             model_processor.process_3d_model_background, 
             post_id=str(db_post.id), 
             file_url=post.file_url
         )
-    else:
-        print("⚠️ Background Task tetiklenmedi! file_url boş veya zip değil.")
     
     return db_post
 
@@ -198,18 +186,16 @@ def delete_post(request: Request, post_id: uuid.UUID, db: Session = Depends(get_
     if not deleted_post:
         raise HTTPException(status_code=403, detail="Post not found or you don't have permission to delete it")
     
-    # --- LOGLAMA ---
     audit_crud.create_audit_log(
         db=db,
         user_id=current_user.id,
         action="SHOWCASE_POST_DELETED",
         target_entity="showcase_posts",
         target_id=str(post_id),
-        details="Vitrin gönderisi silindi.", # Düz string olduğu için json.dumps gerekmez
+        details="Vitrin gönderisi silindi.", 
         ip_address=request.client.host,
         user_agent=request.headers.get("user-agent")
     )
-    # ---------------
     
     return
 
@@ -218,9 +204,28 @@ def delete_post(request: Request, post_id: uuid.UUID, db: Session = Depends(get_
 # =======================================================================
 @router.post("/posts/{post_id}/like", response_model=schemas.showcase.PostLike, status_code=status.HTTP_201_CREATED)
 @limiter.limit("100/minute")
-def like_a_post(request: Request, post_id: uuid.UUID, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def like_a_post(
+    request: Request, 
+    post_id: uuid.UUID, 
+    background_tasks: BackgroundTasks, # 🚀 EKLENDİ
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
     like = crud.showcase.like_post(db, post_id=post_id, user_id=current_user.id)
     if not like: raise HTTPException(status_code=404, detail="Post not found")
+
+    # 🚀 AKILLI BİLDİRİM (BEĞENİ)
+    post = crud.showcase.get_showcase_post(db, post_id=post_id)
+    if post and post.owner and post.owner.id != current_user.id:
+        if post.owner.push_enabled and post.owner.expo_push_token:
+            background_tasks.add_task(
+                send_expo_push_notification,
+                token=post.owner.expo_push_token,
+                title="Yeni Beğeni! ❤️",
+                body=f"{current_user.name} bir vitrin gönderini beğendi.",
+                data={"type": "like", "related_entity_id": str(post_id)}
+            )
+
     return like
 
 @router.delete("/posts/{post_id}/like", status_code=status.HTTP_204_NO_CONTENT)
@@ -239,6 +244,7 @@ def create_a_comment(
     request: Request,
     post_id: uuid.UUID,
     comment_data: schemas.showcase.CommentCreateBody,
+    background_tasks: BackgroundTasks, # 🚀 EKLENDİ
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
@@ -249,7 +255,6 @@ def create_a_comment(
     )
     comment = crud.showcase.create_comment(db, comment=comment_create_schema, user_id=current_user.id)
     
-    # --- LOGLAMA ---
     if comment:
         audit_crud.create_audit_log(
             db=db,
@@ -261,7 +266,19 @@ def create_a_comment(
             ip_address=request.client.host,
             user_agent=request.headers.get("user-agent")
         )
-    # ---------------
+
+        # 🚀 AKILLI BİLDİRİM (YORUM)
+        post = crud.showcase.get_showcase_post(db, post_id=post_id)
+        if post and post.owner and post.owner.id != current_user.id:
+            if post.owner.push_enabled and post.owner.expo_push_token:
+                preview = comment_data.content[:40] + ("..." if len(comment_data.content) > 40 else "")
+                background_tasks.add_task(
+                    send_expo_push_notification,
+                    token=post.owner.expo_push_token,
+                    title="Yeni Yorum! 💬",
+                    body=f"{current_user.name}: {preview}",
+                    data={"type": "comment", "related_entity_id": str(post_id)}
+                )
     
     return comment
 
@@ -308,7 +325,6 @@ async def upload_proxy(
     file_path: str = Form(...), 
     bucket: str = Form(...)     
 ):
-    # Proxy upload loglaması gerekirse buraya eklenebilir ama şimdilik gerek yok.
     try:
         file_content = await file.read()
         supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_KEY)
