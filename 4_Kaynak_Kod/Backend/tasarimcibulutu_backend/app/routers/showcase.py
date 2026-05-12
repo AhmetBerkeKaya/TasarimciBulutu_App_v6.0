@@ -181,18 +181,39 @@ def read_post(request: Request, post_id: uuid.UUID, db: Session = Depends(get_db
 # =======================================================================
 @router.delete("/posts/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("10/hour")
-def delete_post(request: Request, post_id: uuid.UUID, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def delete_post(
+    request: Request, 
+    post_id: uuid.UUID, 
+    background_tasks: BackgroundTasks, # 🚀 EKLENDİ: Kullanıcıyı bekletmeden silmek için
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(get_current_user)
+):
+    # 1. Önce veritabanından kaydı sil (CRUD silinen objeyi döndürüyor)
     deleted_post = crud.showcase.delete_showcase_post(db, post_id=post_id, user_id=current_user.id)
     if not deleted_post:
         raise HTTPException(status_code=403, detail="Post not found or you don't have permission to delete it")
     
+    # 2. 🚀 AKILLI İMHA MOTORUNU ATEŞLE!
+    # Gönderiye ait ne kadar URL varsa (Zip, Resim, Thumbnail) hepsini topla
+    urls_to_delete = [
+        getattr(deleted_post, 'file_url', None),
+        getattr(deleted_post, 'raw_file_url', None),
+        getattr(deleted_post, 'thumbnail_url', None)
+    ]
+    
+    # Her bir URL için sunucuya (Supabase/Cloudinary) "Bunu Çöpe At" komutu gönder
+    for file_url in set(urls_to_delete): # set() kullanarak aynı URL'yi iki kere silmeyi önlüyoruz
+        if file_url and isinstance(file_url, str):
+            background_tasks.add_task(s3_utils.delete_file_from_storage, file_url=file_url)
+    
+    # 3. İşlemi Logla
     audit_crud.create_audit_log(
         db=db,
         user_id=current_user.id,
         action="SHOWCASE_POST_DELETED",
         target_entity="showcase_posts",
         target_id=str(post_id),
-        details="Vitrin gönderisi silindi.", 
+        details="Vitrin gönderisi ve bağlı tüm fiziksel dosyalar buluttan silindi.", 
         ip_address=request.client.host,
         user_agent=request.headers.get("user-agent")
     )

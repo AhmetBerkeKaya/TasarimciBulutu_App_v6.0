@@ -184,23 +184,33 @@ def delete_project(db: Session, project_id: UUID) -> models.Project | None:
 def deliver_project(db: Session, project_id: UUID, freelancer_id: UUID) -> models.Project | None:
     logger.info(f"Proje teslimatı yapılıyor: ProjeID={project_id}, FreelancerID={freelancer_id}")
     try:
-        db_project = db.query(models.Project).filter(models.Project.id == project_id).first()
+        # UUID'leri stringe çevirerek garantiye alıyoruz
+        db_project = db.query(models.Project).filter(models.Project.id == str(project_id)).first()
         accepted_app = crud.application.get_accepted_application_for_project(db, project_id)
 
-        if db_project and accepted_app and accepted_app.freelancer_id == freelancer_id and db_project.status == ProjectStatus.IN_PROGRESS.value:
+        if not db_project or not accepted_app:
+            logger.warning("Proje veya onaylanmış başvuru bulunamadı!")
+            return None
+
+        # Enum Objesi vs String Objesi Çatışmasını Önleme Zırhı
+        current_status = db_project.status.value if hasattr(db_project.status, 'value') else db_project.status
+
+        # UUID Objesi vs String Objesi Çatışmasını Önleme Zırhı
+        if str(accepted_app.freelancer_id) == str(freelancer_id) and current_status == ProjectStatus.IN_PROGRESS.value:
+            
             db_project.status = ProjectStatus.PENDING_REVIEW.value
             db_project.updated_at = datetime.now(timezone.utc)
             db.commit()
             db.refresh(db_project)
             
             try:
-                freelancer = db.query(models.User).filter(models.User.id == freelancer_id).first()
+                freelancer = db.query(models.User).filter(models.User.id == str(freelancer_id)).first()
                 if freelancer:
                     content = f"{freelancer.name}, '{db_project.title}' projesinin teslimatını yaptı. Lütfen inceleyin."
                     crud.notification.create_notification(
                         db=db,
                         user_id=db_project.user_id,
-                        actor_id=freelancer_id,
+                        actor_id=freelancer.id,
                         type=NotificationType.PROJECT_DELIVERED,
                         content=content,
                         related_entity_id=db_project.id
@@ -210,6 +220,7 @@ def deliver_project(db: Session, project_id: UUID, freelancer_id: UUID) -> model
 
             return db_project
         else:
+            logger.warning("Yetki veya durum uyuşmazlığı. (Proje IN_PROGRESS olmayabilir)")
             return None
     except Exception as e:
         logger.error(f"Teslimat hatası: {e}")
@@ -218,9 +229,12 @@ def deliver_project(db: Session, project_id: UUID, freelancer_id: UUID) -> model
 
 def accept_and_complete_project(db: Session, project_id: UUID, owner_id: UUID) -> models.Project | None:
     try:
-        db_project = db.query(models.Project).filter(models.Project.id == project_id).first()
-        if db_project and db_project.status == ProjectStatus.PENDING_REVIEW.value and db_project.user_id == owner_id:
-            
+        db_project = db.query(models.Project).filter(models.Project.id == str(project_id)).first()
+        if not db_project: return None
+
+        current_status = db_project.status.value if hasattr(db_project.status, 'value') else db_project.status
+
+        if current_status == ProjectStatus.PENDING_REVIEW.value and str(db_project.user_id) == str(owner_id):
             accepted_app = crud.application.get_accepted_application_for_project(db, project_id)
             if not accepted_app: return None 
 
@@ -234,7 +248,7 @@ def accept_and_complete_project(db: Session, project_id: UUID, owner_id: UUID) -
                 crud.notification.create_notification(
                     db=db,
                     user_id=accepted_app.freelancer_id,
-                    actor_id=owner_id,
+                    actor_id=db_project.user_id,
                     type=NotificationType.DELIVERY_ACCEPTED,
                     content=content,
                     related_entity_id=db_project.id
@@ -243,8 +257,7 @@ def accept_and_complete_project(db: Session, project_id: UUID, owner_id: UUID) -
                 logger.error(f"Bildirim hatası: {e}")
 
             return db_project
-        else:
-            return None
+        return None
     except Exception as e:
         logger.error(f"Teslimat kabul hatası: {e}")
         db.rollback()
@@ -252,35 +265,32 @@ def accept_and_complete_project(db: Session, project_id: UUID, owner_id: UUID) -
 
 def request_revision(db: Session, project_id: UUID, owner_id: UUID, reason: str) -> models.Project | None:
     try:
-        db_project = db.query(models.Project).filter(models.Project.id == project_id).first()
-        # Durum kontrolü (Pending Review olmalı) ve Sahip kontrolü
-        if db_project and db_project.status == ProjectStatus.PENDING_REVIEW.value and db_project.user_id == owner_id:
-            
+        db_project = db.query(models.Project).filter(models.Project.id == str(project_id)).first()
+        if not db_project: return None
+
+        current_status = db_project.status.value if hasattr(db_project.status, 'value') else db_project.status
+
+        if current_status == ProjectStatus.PENDING_REVIEW.value and str(db_project.user_id) == str(owner_id):
             accepted_app = crud.application.get_accepted_application_for_project(db, project_id)
             if not accepted_app: return None 
 
-            # 1. Durumu güncelle
             db_project.status = ProjectStatus.IN_PROGRESS.value
             db_project.updated_at = datetime.now(timezone.utc)
             
-            # 2. === YENİ: Revizyonu Tabloya Kaydet ===
             new_revision = models.ProjectRevision(
-                project_id=project_id,
+                project_id=db_project.id,
                 request_reason=reason
             )
             db.add(new_revision)
-            # =========================================
-            
             db.commit()
-            db.refresh(db_project) # Revisions listesi güncellensin diye refresh
+            db.refresh(db_project) 
 
-            # 3. Bildirim Gönder
             try:
                 content = f"'{db_project.title}' projesi için revizyon talep edildi.\nSebep: {reason}"
                 crud.notification.create_notification(
                     db=db,
                     user_id=accepted_app.freelancer_id,
-                    actor_id=owner_id,
+                    actor_id=db_project.user_id,
                     type=NotificationType.REVISION_REQUESTED,
                     content=content,
                     related_entity_id=db_project.id
@@ -289,8 +299,7 @@ def request_revision(db: Session, project_id: UUID, owner_id: UUID, reason: str)
                 logger.error(f"Bildirim hatası: {e}")
 
             return db_project
-        else:
-            return None
+        return None
     except Exception as e:
         logger.error(f"Revizyon hatası: {e}")
         db.rollback()

@@ -221,11 +221,12 @@ def deliver_project_as_freelancer(request: Request, project_id: UUID, db: Sessio
 @limiter.limit("20/hour")
 def accept_delivery_and_complete_project(request: Request, project_id: UUID, db: Session = Depends(get_db), current_user: UserModel = Depends(get_current_user)):
     if current_user.role != UserRole.client:
-        raise HTTPException(status_code=403, detail="Only clients can accept deliveries.")
+        raise HTTPException(status_code=403, detail="Sadece yetkili firmalar teslimatları onaylayabilir.")
     
     updated_project = crud.project.accept_and_complete_project(db=db, project_id=project_id, owner_id=current_user.id)
     if not updated_project:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Project is not in progress or you are not the assigned freelancer.")
+        # 🚀 HATA MESAJI DÜZELTİLDİ
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Proje inceleme aşamasında değil veya bu projenin sahibi siz değilsiniz.")
     
     audit_crud.create_audit_log(
         db=db,
